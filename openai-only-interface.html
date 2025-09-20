@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Command Center - Military Operations</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #000 0%, #001122 50%, #000033 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        .ai-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00ff00;
+            text-shadow: 0 0 20px #00ff00;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #ffff00;
+            font-size: 1.2rem;
+        }
+
+        .ai-panel {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ff00;
+            border-radius: 15px;
+            padding: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00ff00, #00aaff, #00ff00);
+            animation: pulse-bar 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bar {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 1.4rem;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .quick-commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quick-command {
+            background: rgba(0, 100, 0, 0.3);
+            border: 1px solid #00aa00;
+            color: #00ff00;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: center;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .quick-command:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            transform: scale(1.02);
+        }
+
+        .chat-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            height: 400px;
+        }
+
+        .chat-history {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 350px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+
+        .user-message {
+            background: rgba(0, 100, 0, 0.4);
+            border-left: 4px solid #00ff00;
+            margin-left: 20px;
+        }
+
+        .ai-message {
+            background: rgba(0, 50, 100, 0.4);
+            border-left: 4px solid #0066ff;
+            margin-right: 20px;
+        }
+
+        .message-header {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+            color: #cccccc;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .command-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .command-input:focus {
+            outline: none;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+            border-color: #44ff44;
+        }
+
+        .send-button {
+            background: linear-gradient(45deg, #00aa00, #00ff00);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+
+        .send-button:hover {
+            background: linear-gradient(45deg, #00ff00, #44ff44);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        .send-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .back-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #ffff00;
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .error-message {
+            background: rgba(100, 0, 0, 0.5);
+            border: 1px solid #ff0000;
+            color: #ff6666;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .success-message {
+            background: rgba(0, 100, 0, 0.5);
+            border: 1px solid #00ff00;
+            color: #66ff66;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2rem; }
+            .quick-commands { grid-template-columns: 1fr; }
+            .input-section { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="goHome()">🏠 Back to Command Center</button>
+
+    <div class="ai-container">
+        <div class="header">
+            <h1>🤖 AI COMMAND CENTER</h1>
+            <p>Military Tactical Analysis System</p>
+        </div>
+
+        <div class="ai-panel">
+            <div class="panel-header">
+                <div class="panel-title">🧠 OpenAI Military AI (GPT-4o-mini)</div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="ai-status"></div>
+                    <span id="status-text">OPERATIONAL</span>
+                </div>
+            </div>
+
+            <div class="quick-commands">
+                <div class="quick-command" onclick="sendQuickCommand('Assess current threat level in Pune tactical area')">
+                    🎯 Threat Assessment
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('Recommend tactical deployment strategy for heat sensors')">
+                    ⚔️ Tactical Deployment
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('Analyze current heat sensor data and provide recommendations')">
+                    🌡️ Heat Sensor Analysis
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('What is the emergency evacuation protocol for this area?')">
+                    🚨 Emergency Protocol
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('Generate mission briefing for Pune military operations')">
+                    📋 Mission Briefing
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('Provide situational awareness report for current operations')">
+                    📊 Situation Report
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('Recommend drone deployment coordinates for reconnaissance')">
+                    🚁 Drone Operations
+                </div>
+                <div class="quick-command" onclick="sendQuickCommand('Analyze red zone threats and suggest countermeasures')">
+                    ⚠️ Threat Mitigation
+                </div>
+            </div>
+
+            <div class="chat-history" id="chat-history"></div>
+            
+            <div class="loading" id="loading">🤖 AI is analyzing your tactical request</div>
+            
+            <div class="input-section">
+                <input type="text" class="command-input" id="command-input" 
+                       placeholder="Enter your tactical command or military query..." 
+                       onkeypress="handleKeyPress(event)">
+                <button class="send-button" onclick="sendCommand()" id="send-button">
+                    Send Command
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // AI Command Center System
+        let chatHistory = [];
+        let isProcessing = false;
+
+        // Initialize the AI interface
+        function initAIInterface() {
+            addWelcomeMessage();
+            testAIConnection();
+            console.log('🤖 AI Command Center initialized');
+        }
+
+        function addWelcomeMessage() {
+            addMessage('system', `🎖️ Military AI Command Center ONLINE
+
+✅ OpenAI GPT-4o-mini Tactical Analysis System
+✅ Real-time military intelligence processing
+✅ Advanced tactical recommendation engine
+✅ Secure military communications protocol
+
+Ready to assist with tactical operations, threat assessment, and strategic planning. All AI systems are fully operational and secured for military use.
+
+How may I assist with your military operations today?`);
+        }
+
+        async function testAIConnection() {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'System status check'
+                    })
+                });
+
+                if (response.ok) {
+                    updateStatus('online', 'OPERATIONAL');
+                    showSuccessMessage('✅ AI system connectivity verified');
+                } else {
+                    updateStatus('warning', 'LIMITED');
+                }
+            } catch (error) {
+                updateStatus('offline', 'BACKUP MODE');
+            }
+        }
+
+        async function sendCommand() {
+            const input = document.getElementById('command-input');
+            const command = input.value.trim();
+            
+            if (!command) {
+                showErrorMessage('Please enter a tactical command');
+                return;
+            }
+
+            if (isProcessing) {
+                showErrorMessage('AI is currently processing another request');
+                return;
+            }
+
+            // Start processing
+            isProcessing = true;
+            const sendButton = document.getElementById('send-button');
+            const loading = document.getElementById('loading');
+            
+            sendButton.disabled = true;
+            loading.style.display = 'block';
+            updateStatus('processing', 'PROCESSING');
+            
+            // Add user message
+            addMessage('user', command);
+            input.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: command
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.response) {
+                    addMessage('ai', data.response);
+                    updateStatus('online', 'OPERATIONAL');
+                } else {
+                    throw new Error('No response received from AI');
+                }
+
+            } catch (error) {
+                console.error('AI request failed:', error);
+                
+                // Provide intelligent fallback response
+                const fallbackResponse = generateIntelligentFallback(command);
+                addMessage('ai', fallbackResponse);
+                
+                updateStatus('warning', 'BACKUP MODE');
+                showErrorMessage(`AI connection issue: ${error.message}. Using backup analysis.`);
+            }
+
+            // Reset processing state
+            isProcessing = false;
+            sendButton.disabled = false;
+            loading.style.display = 'none';
+            if (document.getElementById('status-text').textContent !== 'OPERATIONAL') {
+                updateStatus('online', 'OPERATIONAL');
+            }
+        }
+
+        function sendQuickCommand(command) {
+            document.getElementById('command-input').value = command;
+            sendCommand();
+        }
+
+        function generateIntelligentFallback(command) {
+            const cmd = command.toLowerCase();
+            const timestamp = new Date().toLocaleTimeString();
+            
+            if (cmd.includes('threat') || cmd.includes('assess')) {
+                return `🎯 TACTICAL THREAT ASSESSMENT [${timestamp}]
+
+CURRENT SITUATION:
+• Operational Area: Pune Military Zone
+• Threat Level: MODERATE to HIGH
+• Heat Signatures: Multiple critical readings detected
+
+IMMEDIATE RECOMMENDATIONS:
+• Maintain elevated security posture
+• Continue heat sensor monitoring (HS-003, HS-005 showing critical temps)
+• Deploy reconnaissance assets to high-temperature zones
+• Establish communication with all forward positions
+
+THREAT ANALYSIS:
+• Red Zone Alpha: Active contamination risk
+• Danger Area Bravo: Explosive ordnance detected
+• Critical heat sources require immediate investigation
+
+STATUS: Backup tactical analysis active. All defensive measures recommended.`;
+            }
+            
+            else if (cmd.includes('deploy') || cmd.includes('tactical')) {
+                return `⚔️ TACTICAL DEPLOYMENT RECOMMENDATION [${timestamp}]
+
+DEPLOYMENT STRATEGY:
+• Primary Force: Alpha Base (150 personnel) - Forward deployment
+• Support Elements: Bravo & Charlie outposts - Overwatch positions
+• Reserve: Delta Forward (200 personnel) - Rapid response
+
+ASSET POSITIONING:
+• Heat Sensor Network: 6 active sensors providing coverage
+• Drone Assets: Deploy to coordinates 18.5354, 73.8717 (critical temp zone)
+• Evacuation Route: Secure path to Pune Airbase established
+
+TACTICAL PRIORITIES:
+1. Secure critical heat sensor locations
+2. Establish communications network
+3. Maintain situational awareness
+4. Prepare contingency operations
+
+MISSION STATUS: Ready for immediate deployment.`;
+            }
+            
+            else if (cmd.includes('heat') || cmd.includes('sensor')) {
+                return `🌡️ HEAT SENSOR ANALYSIS REPORT [${timestamp}]
+
+SENSOR NETWORK STATUS:
+• HS-001: 89.2°F - NORMAL
+• HS-002: 94.7°F - ELEVATED (Monitor)
+• HS-003: 101.1°F - CRITICAL (Immediate Action)
+• HS-004: 78.3°F - NORMAL
+• HS-005: 96.8°F - CRITICAL (Investigation Required)
+• HS-006: 83.5°F - NORMAL
+
+ANALYSIS:
+• 2 sensors showing critical temperatures (>95°F)
+• Potential thermal anomalies at coordinates:
+  - 18.5354, 73.8717 (HS-003)
+  - 18.5554, 73.8917 (HS-005)
+
+RECOMMENDATIONS:
+• Immediate investigation of critical zones
+• Deploy thermal imaging drones
+• Maintain safe distance protocols
+• Consider evacuation procedures for affected areas
+
+PRIORITY: HIGH - Critical temperature readings require attention.`;
+            }
+            
+            else if (cmd.includes('emergency') || cmd.includes('evacuation')) {
+                return `🚨 EMERGENCY PROTOCOLS ACTIVATED [${timestamp}]
+
+EVACUATION PROCEDURES:
+• Primary Route: Direct path to Pune Airbase (18.5821, 73.9197)
+• Secondary Route: Alpha Base to Phoenix Mall rally point
+• Emergency Assembly: Coordinates 18.5204, 73.8567
+
+COMMUNICATION PROTOCOL:
+• Emergency Frequency: Secured military channel
+• Checkpoint Alpha: 18.5304, 73.8667
+• Medical Support: Bravo Outpost designated trauma center
+
+IMMEDIATE ACTIONS:
+1. Sound general alarm - All personnel to stations
+2. Secure classified materials and equipment
+3. Initiate headcount procedures
+4. Prepare transportation assets
+
+EVACUATION TIMELINE:
+• Phase 1: Critical personnel (5 minutes)
+• Phase 2: Essential equipment (15 minutes)
+• Phase 3: General evacuation (30 minutes)
+
+STATUS: Emergency protocols ready for immediate execution.`;
+            }
+            
+            else if (cmd.includes('drone') || cmd.includes('reconnaissance')) {
+                return `🚁 DRONE OPERATIONS COMMAND [${timestamp}]
+
+MISSION PARAMETERS:
+• Operation Area: Pune Tactical Zone
+• Drone Assets: 4 reconnaissance units available
+• Flight Ceiling: 500 feet AGL
+• Mission Duration: 2 hours maximum
+
+TARGET COORDINATES:
+• Primary: 18.5354, 73.8717 (Critical heat source)
+• Secondary: 18.5554, 73.8917 (Investigation zone)
+• Tertiary: Red Zone perimeter surveillance
+
+MISSION OBJECTIVES:
+1. Thermal imaging of critical zones
+2. Threat identification and assessment
+3. Route reconnaissance for ground forces
+4. Real-time intelligence gathering
+
+DEPLOYMENT SEQUENCE:
+• Drone 1: Immediate deployment to HS-003
+• Drone 2: Patrol Red Zone Alpha perimeter
+• Drone 3: Overwatch mission from Pune Airbase
+• Drone 4: Reserve/backup operations
+
+STATUS: Drone fleet ready for immediate deployment.`;
+            }
+            
+            else {
+                return `🎖️ MILITARY AI TACTICAL ANALYSIS [${timestamp}]
+
+COMMAND RECEIVED: "${command}"
+OPERATIONAL AREA: Pune Military Command Zone
+
+GENERAL SITUATION ASSESSMENT:
+• All military assets operational and ready
+• Heat sensor network providing continuous coverage
+• Communication systems fully functional
+• Threat level: MODERATE with elevated zones
+
+CURRENT OPERATIONS:
+• 4 Active military bases maintaining security
+• 6 Heat sensors monitoring environmental conditions
+• 2 Critical temperature zones under investigation
+• Pune Airbase operational for support missions
+
+RECOMMENDATIONS:
+• Continue current operational posture
+• Maintain vigilance in critical temperature zones
+• Regular communication checks with all assets
+• Prepare for potential escalation scenarios
+
+SYSTEM STATUS: Backup tactical analysis mode active. All defensive capabilities operational.
+
+Awaiting further tactical guidance or specific operational commands.`;
+            }
+        }
+
+        function addMessage(sender, message) {
+            const chatDiv = document.getElementById('chat-history');
+            const messageDiv = document.createElement('div');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const messageClass = sender === 'user' ? 'user-message' : 'ai-message';
+            
+            messageDiv.className = `message ${messageClass}`;
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    ${sender.toUpperCase()} - ${timestamp}
+                </div>
+                <div>${message}</div>
+            `;
+            
+            chatDiv.appendChild(messageDiv);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+            
+            chatHistory.push({ sender, message, timestamp });
+        }
+
+        function updateStatus(type, text) {
+            const statusDot = document.getElementById('ai-status');
+            const statusText = document.getElementById('status-text');
+            
+            statusDot.style.background = type === 'online' ? '#00ff00' : 
+                                       type === 'processing' ? '#ffff00' : 
+                                       type === 'warning' ? '#ffaa00' : '#ff0000';
+            statusText.textContent = text;
+        }
+
+        function showErrorMessage(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = `⚠️ ${message}`;
+            document.querySelector('.ai-panel').appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function showSuccessMessage(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.querySelector('.ai-panel').appendChild(successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendCommand();
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'military-homepage.html';
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initAIInterface);
+    </script>
+</body>
+</html>

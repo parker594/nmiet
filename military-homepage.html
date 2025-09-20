@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎖️ Military AI Command Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            overflow-x: hidden;
+            overflow-y: auto;
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .background-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="%2300ff0020" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            animation: gridMove 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(100px, 100px); }
+        }
+
+        .command-center {
+            text-align: center;
+            z-index: 10;
+            max-width: 1200px;
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00, 0 0 40px #00ff00; }
+            to { text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00; }
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            color: #ffff00;
+            animation: typewriter 3s steps(40) 1s both;
+            border-right: 2px solid #ffff00;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        .mission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .mission-card {
+            background: linear-gradient(145deg, rgba(0, 255, 0, 0.1), rgba(0, 100, 0, 0.05));
+            border: 2px solid #00ff00;
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mission-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 0, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+            opacity: 0;
+        }
+
+        .mission-card:hover::before {
+            animation: scan 2s linear infinite;
+            opacity: 1;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+
+        .mission-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(0, 255, 0, 0.3);
+            border-color: #ffff00;
+        }
+
+        .mission-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .mission-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+
+        .mission-description {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #cccccc;
+            margin-bottom: 20px;
+        }
+
+        .mission-button {
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mission-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 102, 0, 0.6);
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-top: 1px solid #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-online { background: #00ff00; }
+        .status-warning { background: #ffff00; }
+        .status-critical { background: #ff0000; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .ai-chat-button {
+            position: fixed;
+            bottom: 80px;
+            right: 30px;
+            background: linear-gradient(45deg, #0066ff, #00aaff);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 102, 255, 0.4);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .ai-chat-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 102, 255, 0.6);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .mission-grid { grid-template-columns: 1fr; }
+            .command-center { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+    
+    <div class="command-center">
+        <h1>🎖️ MILITARY AI COMMAND CENTER</h1>
+        <div class="subtitle">Advanced Tactical Operations Platform</div>
+        
+        <div class="mission-grid">
+            <div class="mission-card" onclick="openMission('3d-heat')">
+                <span class="mission-icon">🌡️</span>
+                <div class="mission-title">3D Heat Visualization</div>
+                <div class="mission-description">
+                    Real-time 3D thermal mapping with advanced heat signature detection. 
+                    Interactive 3D environment showing temperature gradients and hotspots.
+                </div>
+                <button class="mission-button">Launch 3D Heat Map</button>
+            </div>
+
+            <div class="mission-card" onclick="openMission('tactical-map')">
+                <span class="mission-icon">🗺️</span>
+                <div class="mission-title">Tactical Operations Map</div>
+                <div class="mission-description">
+                    Military tactical map with soldier camps, routing, and red zone identification.
+                    Real coordinates with drone command capabilities.
+                </div>
+                <button class="mission-button">Open Tactical Map</button>
+            </div>
+
+            <div class="mission-card" onclick="openMission('ai-command')">
+                <span class="mission-icon">🤖</span>
+                <div class="mission-title">AI Command Interface</div>
+                <div class="mission-description">
+                    Direct interface with OpenAI and Google AI for tactical analysis.
+                    Real-time AI responses for military strategy and operations.
+                </div>
+                <button class="mission-button">Access AI Command</button>
+            </div>
+
+            <div class="mission-card" onclick="openMission('satellite-view')">
+                <span class="mission-icon">🛰️</span>
+                <div class="mission-title">Satellite Intelligence</div>
+                <div class="mission-description">
+                    Real satellite imagery integration with Google Earth data.
+                    Live reconnaissance and terrain analysis capabilities.
+                </div>
+                <button class="mission-button">Launch Satellite View</button>
+            </div>
+
+            <div class="mission-card" onclick="openMission('drone-control')">
+                <span class="mission-icon">🚁</span>
+                <div class="mission-title">Drone Command Center</div>
+                <div class="mission-description">
+                    Coordinate and control drone operations with precision targeting.
+                    Real-time mission planning and execution monitoring.
+                </div>
+                <button class="mission-button">Control Drones</button>
+            </div>
+
+            <div class="mission-card" onclick="openMission('threat-analysis')">
+                <span class="mission-icon">⚠️</span>
+                <div class="mission-title">Threat Assessment</div>
+                <div class="mission-description">
+                    AI-powered threat detection and analysis system.
+                    Real-time risk evaluation and countermeasure recommendations.
+                </div>
+                <button class="mission-button">Analyze Threats</button>
+            </div>
+        </div>
+    </div>
+
+    <button class="ai-chat-button" onclick="openMission('ai-command')">
+        🧠 Quick AI Chat
+    </button>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-indicator status-online"></span>
+            <span>System: OPERATIONAL</span>
+        </div>
+        <div class="status-item">
+            <span class="status-indicator status-online"></span>
+            <span>AI: READY</span>
+        </div>
+        <div class="status-item">
+            <span class="status-indicator status-warning"></span>
+            <span>Map: LOADING</span>
+        </div>
+        <div class="status-item">
+            <span class="status-indicator status-online"></span>
+            <span>Security: ACTIVE</span>
+        </div>
+        <div class="status-item">
+            <span id="current-time"></span>
+        </div>
+    </div>
+
+    <script>
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Mission navigation
+        function openMission(missionType) {
+            switch(missionType) {
+                case '3d-heat':
+                    window.location.href = '3d-heat-map.html';
+                    break;
+                case 'tactical-map':
+                    window.location.href = 'tactical-operations-map.html';
+                    break;
+                case 'ai-command':
+                    window.location.href = 'final-military-ai-interface.html';
+                    break;
+                case 'satellite-view':
+                    window.location.href = 'final-military-ai-interface.html';
+                    break;
+                case 'drone-control':
+                    window.location.href = 'final-military-ai-interface.html';
+                    break;
+                case 'threat-analysis':
+                    window.location.href = 'final-military-ai-interface.html';
+                    break;
+                default:
+                    console.log('Mission type not implemented:', missionType);
+            }
+        }
+
+        // Add click sound effect (optional)
+        document.querySelectorAll('.mission-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Add click effect
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        console.log('🎖️ Military AI Command Center Initialized');
+        console.log('🚀 All systems operational');
+    </script>
+</body>
+</html>

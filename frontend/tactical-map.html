@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Military AI Simulation - 3D Tactical Map</title>
+    
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    
+    <!-- Leaflet for 2D map overlay -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #map3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .hud-panel {
+            position: absolute;
+            background: rgba(0, 20, 0, 0.9);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 15px;
+            pointer-events: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .hud-top-left {
+            top: 20px;
+            left: 20px;
+            width: 350px;
+        }
+
+        .hud-top-right {
+            top: 20px;
+            right: 20px;
+            width: 300px;
+        }
+
+        .hud-bottom-left {
+            bottom: 20px;
+            left: 20px;
+            width: 400px;
+        }
+
+        .hud-bottom-right {
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+        }
+
+        .hud-title {
+            color: #00ff00;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+        }
+
+        .hud-content {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .threat-item {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff0000;
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .threat-high {
+            border-color: #ff0000;
+            background: rgba(255, 0, 0, 0.3);
+        }
+
+        .threat-medium {
+            border-color: #ffaa00;
+            background: rgba(255, 170, 0, 0.2);
+        }
+
+        .threat-low {
+            border-color: #ffff00;
+            background: rgba(255, 255, 0, 0.1);
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .control-btn {
+            background: rgba(0, 50, 0, 0.9);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 100, 0, 0.9);
+            box-shadow: 0 0 20px #00ff00;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-active { background: #00ff00; }
+        .status-warning { background: #ffaa00; }
+        .status-critical { background: #ff0000; }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ff00;
+            font-size: 24px;
+            font-family: 'Courier New', monospace;
+            z-index: 100;
+        }
+
+        .tactical-info {
+            background: rgba(0, 0, 50, 0.8);
+            border: 2px solid #0088ff;
+            color: #0088ff;
+        }
+
+        .mission-status {
+            background: rgba(50, 0, 50, 0.8);
+            border: 2px solid #ff00ff;
+            color: #ff00ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="loading">INITIALIZING TACTICAL DISPLAY...</div>
+        <div id="map3d"></div>
+        
+        <div id="ui-overlay">
+            <!-- Top Left: Mission Status -->
+            <div class="hud-panel hud-top-left mission-status">
+                <div class="hud-title">Mission Control</div>
+                <div class="hud-content">
+                    <div>OPERATION: <span id="mission-name">THUNDER STRIKE</span></div>
+                    <div>STATUS: <span class="status-indicator status-active"></span><span id="mission-status">ACTIVE</span></div>
+                    <div>COMMANDER: <span id="commander">CDR SMITH</span></div>
+                    <div>TIME: <span id="mission-time">--:--:--</span></div>
+                    <div>OBJECTIVE: Neutralize enemy positions</div>
+                    <div style="margin-top: 10px;">
+                        <div>PROGRESS: <span id="mission-progress">65%</span></div>
+                        <div>ASSETS DEPLOYED: <span id="assets-deployed">12</span></div>
+                        <div>CASUALTIES: <span id="casualties">0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Right: Heat Sensors -->
+            <div class="hud-panel hud-top-right">
+                <div class="hud-title">Thermal Detection</div>
+                <div class="hud-content">
+                    <div>SENSORS: <span class="status-indicator status-active"></span><span id="sensors-active">8/8</span> ACTIVE</div>
+                    <div>COVERAGE: <span id="coverage-area">157 km²</span></div>
+                    <div>DETECTIONS: <span id="total-detections">5</span></div>
+                    <div style="margin-top: 10px;">
+                        <div style="font-weight: bold; color: #ffaa00;">PRIORITY TARGETS:</div>
+                        <div id="heat-signatures"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Left: Tactical Analysis -->
+            <div class="hud-panel hud-bottom-left tactical-info">
+                <div class="hud-title">Tactical Analysis</div>
+                <div class="hud-content">
+                    <div>THREAT LEVEL: <span id="threat-level">MEDIUM</span></div>
+                    <div>WEATHER: <span id="weather">Clear, 22°C</span></div>
+                    <div>VISIBILITY: <span id="visibility">Excellent</span></div>
+                    <div style="margin-top: 10px;">
+                        <div style="font-weight: bold;">RECOMMENDED ACTIONS:</div>
+                        <div id="tactical-recommendations"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Right: Navigation -->
+            <div class="hud-panel hud-bottom-right">
+                <div class="hud-title">Navigation Status</div>
+                <div class="hud-content">
+                    <div>BASE: <span id="base-coords">40.7589°N, 73.9851°W</span></div>
+                    <div>CURRENT TARGET: <span id="current-target">--</span></div>
+                    <div>DISTANCE: <span id="target-distance">--</span></div>
+                    <div>ETA: <span id="eta">--</span></div>
+                    <div style="margin-top: 10px;">
+                        <div style="font-weight: bold;">ROUTE STATUS:</div>
+                        <div id="route-status">Planning optimal route...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="control-btn" onclick="toggleView()">TOGGLE VIEW</button>
+            <button class="control-btn" onclick="scanArea()">SCAN AREA</button>
+            <button class="control-btn" onclick="deployAssets()">DEPLOY ASSETS</button>
+            <button class="control-btn" onclick="requestTacticalAnalysis()">TACTICAL AI</button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let terrain, markers = [];
+        let heatSignatures = [];
+        let isLoading = true;
+        let viewMode = '3D'; // '3D' or '2D'
+        
+        // Initialize the 3D tactical map
+        function init() {
+            console.log('Initializing 3D Tactical Map...');
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x001122);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 50, 50);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('map3d').appendChild(renderer.domElement);
+            
+            // Add lights
+            addLights();
+            
+            // Create terrain
+            createTerrain();
+            
+            // Add army base
+            addArmyBase();
+            
+            // Add orbit controls
+            addControls();
+            
+            // Start animation loop
+            animate();
+            
+            // Initialize data updates
+            initializeDataUpdates();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                isLoading = false;
+            }, 2000);
+        }
+        
+        function addLights() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+            
+            // Directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // Point light for base
+            const baseLight = new THREE.PointLight(0x00ff00, 1, 100);
+            baseLight.position.set(0, 10, 0);
+            scene.add(baseLight);
+        }
+        
+        function createTerrain() {
+            // Create terrain geometry
+            const terrainGeometry = new THREE.PlaneGeometry(200, 200, 64, 64);
+            
+            // Add height variation
+            const vertices = terrainGeometry.attributes.position.array;
+            for (let i = 0; i < vertices.length; i += 3) {
+                vertices[i + 2] = Math.random() * 10 - 5; // Random height
+            }
+            terrainGeometry.attributes.position.needsUpdate = true;
+            terrainGeometry.computeVertexNormals();
+            
+            // Create terrain material
+            const terrainMaterial = new THREE.MeshLambertMaterial({
+                color: 0x228B22,
+                wireframe: false
+            });
+            
+            // Create terrain mesh
+            terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+            terrain.rotation.x = -Math.PI / 2;
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+        }
+        
+        function addArmyBase() {
+            // Base structure
+            const baseGeometry = new THREE.BoxGeometry(10, 5, 10);
+            const baseMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.set(0, 2.5, 0);
+            base.castShadow = true;
+            scene.add(base);
+            
+            // Flag pole
+            const poleGeometry = new THREE.CylinderGeometry(0.2, 0.2, 15);
+            const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+            pole.position.set(8, 7.5, 8);
+            scene.add(pole);
+            
+            // Flag
+            const flagGeometry = new THREE.PlaneGeometry(4, 2);
+            const flagMaterial = new THREE.MeshLambertMaterial({ color: 0x0000ff });
+            const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+            flag.position.set(6, 12, 8);
+            scene.add(flag);
+        }
+        
+        function addControls() {
+            // Simple orbit controls (basic implementation)
+            let mouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            
+            renderer.domElement.addEventListener('mousedown', (event) => {
+                mouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', () => {
+                mouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', (event) => {
+                if (!mouseDown) return;
+                
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+                
+                // Rotate camera around the scene
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+                
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+                
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+            
+            // Zoom with wheel
+            renderer.domElement.addEventListener('wheel', (event) => {
+                camera.position.multiplyScalar(1 + event.deltaY * 0.001);
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!isLoading) {
+                // Rotate flag
+                scene.children.forEach(child => {
+                    if (child.geometry && child.geometry.type === 'PlaneGeometry' && child.material.color.getHex() === 0x0000ff) {
+                        child.rotation.y = Math.sin(Date.now() * 0.001) * 0.3;
+                    }
+                });
+                
+                // Update heat signatures
+                updateHeatSignatureMarkers();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function initializeDataUpdates() {
+            // Update mission time
+            updateMissionTime();
+            setInterval(updateMissionTime, 1000);
+            
+            // Fetch heat signatures
+            fetchHeatSignatures();
+            setInterval(fetchHeatSignatures, 5000);
+            
+            // Update tactical analysis
+            updateTacticalAnalysis();
+            setInterval(updateTacticalAnalysis, 10000);
+        }
+        
+        function updateMissionTime() {
+            const now = new Date();
+            document.getElementById('mission-time').textContent = now.toLocaleTimeString();
+        }
+        
+        async function fetchHeatSignatures() {
+            try {
+                const response = await fetch('/api/heat-signatures');
+                const data = await response.json();
+                
+                heatSignatures = data.signatures || [];
+                updateHeatSignatureDisplay();
+                updateThreatLevel();
+                
+            } catch (error) {
+                console.error('Error fetching heat signatures:', error);
+                // Use mock data
+                generateMockHeatSignatures();
+            }
+        }
+        
+        function generateMockHeatSignatures() {
+            heatSignatures = [
+                {
+                    id: 'HEAT_001',
+                    position: { lat: 40.7600, lng: -73.9800 },
+                    temperature: 98.5,
+                    threat_level: 'HIGH',
+                    type: 'vehicle',
+                    distance_from_base: 1.2
+                },
+                {
+                    id: 'HEAT_002',
+                    position: { lat: 40.7580, lng: -73.9900 },
+                    temperature: 92.3,
+                    threat_level: 'MEDIUM',
+                    type: 'personnel',
+                    distance_from_base: 0.8
+                }
+            ];
+            updateHeatSignatureDisplay();
+        }
+        
+        function updateHeatSignatureDisplay() {
+            const container = document.getElementById('heat-signatures');
+            container.innerHTML = '';
+            
+            heatSignatures.slice(0, 3).forEach(sig => {
+                const div = document.createElement('div');
+                div.className = `threat-item threat-${sig.threat_level.toLowerCase()}`;
+                div.innerHTML = `
+                    <div>${sig.id}: ${sig.type.toUpperCase()}</div>
+                    <div>${sig.temperature}°C | ${sig.distance_from_base}km</div>
+                `;
+                container.appendChild(div);
+            });
+            
+            document.getElementById('total-detections').textContent = heatSignatures.length;
+        }
+        
+        function updateHeatSignatureMarkers() {
+            // Remove old markers
+            markers.forEach(marker => scene.remove(marker));
+            markers = [];
+            
+            // Add new markers
+            heatSignatures.forEach(sig => {
+                const markerGeometry = new THREE.SphereGeometry(2, 8, 6);
+                const markerMaterial = new THREE.MeshLambertMaterial({
+                    color: sig.threat_level === 'HIGH' ? 0xff0000 : 
+                           sig.threat_level === 'MEDIUM' ? 0xffaa00 : 0xffff00
+                });
+                
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                
+                // Convert lat/lng to scene coordinates (simplified)
+                const x = (sig.position.lng + 73.9851) * 1000;
+                const z = (sig.position.lat - 40.7589) * 1000;
+                
+                marker.position.set(x, 5, z);
+                marker.userData = sig;
+                
+                scene.add(marker);
+                markers.push(marker);
+            });
+        }
+        
+        function updateThreatLevel() {
+            const highThreats = heatSignatures.filter(sig => sig.threat_level === 'HIGH').length;
+            const mediumThreats = heatSignatures.filter(sig => sig.threat_level === 'MEDIUM').length;
+            
+            let overallThreat = 'LOW';
+            if (highThreats > 0) overallThreat = 'HIGH';
+            else if (mediumThreats > 1) overallThreat = 'MEDIUM';
+            
+            document.getElementById('threat-level').textContent = overallThreat;
+        }
+        
+        async function updateTacticalAnalysis() {
+            const recommendations = [
+                "Maintain defensive positions",
+                "Deploy reconnaissance drone",
+                "Prepare for possible engagement"
+            ];
+            
+            const container = document.getElementById('tactical-recommendations');
+            container.innerHTML = recommendations.map(rec => `<div>• ${rec}</div>`).join('');
+        }
+        
+        // Control functions
+        function toggleView() {
+            viewMode = viewMode === '3D' ? '2D' : '3D';
+            console.log('Toggled to', viewMode, 'view');
+            // Implement view toggle logic
+        }
+        
+        function scanArea() {
+            console.log('Scanning area for threats...');
+            fetchHeatSignatures();
+        }
+        
+        function deployAssets() {
+            console.log('Deploying military assets...');
+            // Implement asset deployment
+        }
+        
+        async function requestTacticalAnalysis() {
+            console.log('Requesting tactical AI analysis...');
+            try {
+                const response = await fetch('/api/tactical-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        situation: {
+                            heat_signatures: heatSignatures,
+                            threat_level: document.getElementById('threat-level').textContent
+                        }
+                    })
+                });
+                
+                const analysis = await response.json();
+                console.log('Tactical analysis received:', analysis);
+                
+            } catch (error) {
+                console.error('Error requesting tactical analysis:', error);
+            }
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

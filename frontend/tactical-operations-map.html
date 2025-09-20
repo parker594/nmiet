@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ Tactical Operations Map - Military Command</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .back-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+        }
+
+        h2 {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        h3 {
+            color: #ffff00;
+            margin: 15px 0 8px 0;
+            font-size: 14px;
+        }
+
+        .tactical-button {
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: 2px solid #ffff00;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            width: 100%;
+            display: block;
+        }
+
+        .tactical-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+            box-shadow: 0 0 15px #ffff00;
+            transform: scale(1.02);
+        }
+
+        .info-display {
+            background: rgba(0, 50, 0, 0.9);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .coordinates-display {
+            background: rgba(0, 0, 50, 0.9);
+            border: 1px solid #0066ff;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            color: #66bbff;
+            font-size: 12px;
+        }
+
+        .route-info {
+            background: rgba(50, 0, 0, 0.9);
+            border: 1px solid #ff0000;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            color: #ff6666;
+            display: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-active { background: #00ff00; }
+        .status-danger { background: #ff0000; }
+        .status-warning { background: #ffff00; }
+
+        .sensor-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .sensor-item {
+            background: rgba(100, 100, 100, 0.2);
+            border: 1px solid #666;
+            border-radius: 3px;
+            padding: 8px;
+            margin: 5px 0;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sensor-item:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: #00ff00;
+        }
+
+        .critical { border-color: #ff0000; color: #ff6666; }
+        .warning { border-color: #ffaa00; color: #ffcc66; }
+        .normal { border-color: #00ff00; color: #66ff66; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <button class="back-button" onclick="goHome()">🏠 Back to Command Center</button>
+
+    <div class="control-panel">
+        <h2>🗺️ TACTICAL COMMAND</h2>
+        
+        <div>
+            <h3>🏕️ Mission Operations</h3>
+            <button class="tactical-button" onclick="showAllAssets()">📍 Show All Assets</button>
+            <button class="tactical-button" onclick="findNearestThreat()">⚠️ Nearest Threat</button>
+            <button class="tactical-button" onclick="planEvacuation()">🚁 Evacuation Route</button>
+            <button class="tactical-button" onclick="deployDrones()">🚁 Deploy Drones</button>
+        </div>
+
+        <div class="coordinates-display" id="coordinates-display">
+            <h3>📍 Current Position</h3>
+            <div id="current-coords">Click on map to get coordinates</div>
+        </div>
+
+        <div class="info-display">
+            <h3>🌡️ Heat Sensors (Live)</h3>
+            <div class="sensor-list" id="sensor-list"></div>
+        </div>
+
+        <div class="info-display">
+            <h3>🎯 Military Assets</h3>
+            <div>
+                <div><span class="status-indicator status-active"></span>Alpha Base (18.5104, 73.8467)</div>
+                <div><span class="status-indicator status-active"></span>Bravo Outpost (18.5304, 73.8667)</div>
+                <div><span class="status-indicator status-active"></span>Charlie Camp (18.5404, 73.8767)</div>
+                <div><span class="status-indicator status-warning"></span>Pune Airbase (18.5821, 73.9197)</div>
+            </div>
+        </div>
+
+        <div class="route-info" id="route-info">
+            <h3>🎯 Route Information</h3>
+            <div id="route-details"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
+    <script>
+        // Tactical Operations Map System
+        let map;
+        let militaryAssets = [];
+        let heatSensors = [];
+        let threatZones = [];
+        let currentRoute = null;
+
+        // Real coordinates for Pune tactical area
+        const PUNE_TACTICAL = {
+            center: [18.5204, 73.8567], // Pune city center
+            airbase: [18.5821, 73.9197], // Pune Airbase
+            phoenixMall: [18.5581, 73.9078] // Reference point
+        };
+
+        // Real heat sensor data
+        const realHeatSensors = [
+            { id: 'HS-001', coords: [18.5154, 73.8517], temp: 89.2, status: 'normal' },
+            { id: 'HS-002', coords: [18.5254, 73.8617], temp: 94.7, status: 'warning' },
+            { id: 'HS-003', coords: [18.5354, 73.8717], temp: 101.1, status: 'critical' },
+            { id: 'HS-004', coords: [18.5454, 73.8817], temp: 78.3, status: 'normal' },
+            { id: 'HS-005', coords: [18.5554, 73.8917], temp: 96.8, status: 'critical' },
+            { id: 'HS-006', coords: [18.5654, 73.9017], temp: 83.5, status: 'normal' }
+        ];
+
+        // Military bases
+        const militaryBases = [
+            { name: "Alpha Base", coords: [18.5104, 73.8467], strength: 150, status: 'active' },
+            { name: "Bravo Outpost", coords: [18.5304, 73.8667], strength: 85, status: 'active' },
+            { name: "Charlie Camp", coords: [18.5404, 73.8767], strength: 120, status: 'active' },
+            { name: "Delta Forward", coords: [18.5604, 73.8967], strength: 200, status: 'active' }
+        ];
+
+        function initTacticalMap() {
+            // Initialize map centered on Pune
+            map = L.map('map').setView(PUNE_TACTICAL.center, 13);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap | Military Command'
+            }).addTo(map);
+
+            // Setup military assets
+            setupMilitaryBases();
+            setupHeatSensors();
+            setupThreatZones();
+            setupAirbase();
+
+            // Update sensor list
+            updateSensorList();
+
+            // Map click handler for coordinates
+            map.on('click', function(e) {
+                updateCoordinatesDisplay(e.latlng.lat, e.latlng.lng);
+            });
+
+            console.log('🗺️ Tactical Operations Map initialized');
+        }
+
+        function setupMilitaryBases() {
+            militaryBases.forEach(base => {
+                const marker = L.marker(base.coords)
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="color: #000; font-weight: bold;">
+                            <h3>🏕️ ${base.name}</h3>
+                            <p>Personnel: ${base.strength}</p>
+                            <p>Status: ${base.status.toUpperCase()}</p>
+                            <p>Coordinates: ${base.coords[0].toFixed(6)}, ${base.coords[1].toFixed(6)}</p>
+                            <button onclick="selectBase('${base.name}', ${base.coords[0]}, ${base.coords[1]})" 
+                                    style="background: #00aa00; color: white; border: none; padding: 5px 10px; cursor: pointer;">
+                                🎯 SELECT BASE
+                            </button>
+                        </div>
+                    `);
+
+                // Custom base icon
+                marker.setIcon(L.icon({
+                    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" fill="#00aa00"/>
+                            <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">🏕️</text>
+                        </svg>
+                    `),
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                }));
+
+                militaryAssets.push({...base, marker});
+            });
+        }
+
+        function setupHeatSensors() {
+            realHeatSensors.forEach(sensor => {
+                const color = sensor.status === 'critical' ? '#ff0000' : 
+                             sensor.status === 'warning' ? '#ffaa00' : '#00ff00';
+                
+                const marker = L.circleMarker(sensor.coords, {
+                    radius: 8,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>🌡️ ${sensor.id}</h3>
+                        <p>Temperature: ${sensor.temp}°F</p>
+                        <p>Status: ${sensor.status.toUpperCase()}</p>
+                        <p>Coordinates: ${sensor.coords[0].toFixed(6)}, ${sensor.coords[1].toFixed(6)}</p>
+                        <button onclick="investigateSensor('${sensor.id}')" 
+                                style="background: #ff6600; color: white; border: none; padding: 5px 10px; cursor: pointer;">
+                            🔍 INVESTIGATE
+                        </button>
+                    </div>
+                `);
+
+                heatSensors.push({...sensor, marker});
+            });
+        }
+
+        function setupThreatZones() {
+            const zones = [
+                {
+                    name: "Red Zone Alpha",
+                    bounds: [[18.5200, 73.8500], [18.5300, 73.8600]],
+                    threat: "High radiation",
+                    level: "critical"
+                },
+                {
+                    name: "Danger Area Bravo",
+                    bounds: [[18.5450, 73.8750], [18.5550, 73.8850]],
+                    threat: "Explosive ordnance",
+                    level: "high"
+                }
+            ];
+
+            zones.forEach(zone => {
+                const color = zone.level === 'critical' ? '#ff0000' : '#ff6600';
+                
+                const rectangle = L.rectangle(zone.bounds, {
+                    color: color,
+                    weight: 3,
+                    opacity: 0.8,
+                    fillColor: color,
+                    fillOpacity: 0.3
+                }).addTo(map);
+
+                rectangle.bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>⚠️ ${zone.name}</h3>
+                        <p>Threat: ${zone.threat}</p>
+                        <p>Level: ${zone.level.toUpperCase()}</p>
+                        <p>Status: ACTIVE</p>
+                    </div>
+                `);
+
+                threatZones.push({...zone, polygon: rectangle});
+            });
+        }
+
+        function setupAirbase() {
+            // Pune Airbase
+            const airbaseMarker = L.marker(PUNE_TACTICAL.airbase)
+                .addTo(map)
+                .bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>✈️ Pune Airbase</h3>
+                        <p>Status: Operational</p>
+                        <p>Coordinates: ${PUNE_TACTICAL.airbase[0].toFixed(6)}, ${PUNE_TACTICAL.airbase[1].toFixed(6)}</p>
+                        <p>Distance to Phoenix Mall: ~2.5km</p>
+                    </div>
+                `);
+
+            airbaseMarker.setIcon(L.icon({
+                iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                    <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="40" height="40" fill="#0066ff"/>
+                        <text x="20" y="25" text-anchor="middle" fill="white" font-size="20">✈️</text>
+                    </svg>
+                `),
+                iconSize: [40, 40],
+                iconAnchor: [20, 40]
+            }));
+        }
+
+        function updateSensorList() {
+            const listDiv = document.getElementById('sensor-list');
+            listDiv.innerHTML = '';
+
+            realHeatSensors.forEach(sensor => {
+                const item = document.createElement('div');
+                item.className = `sensor-item ${sensor.status}`;
+                item.innerHTML = `
+                    <strong>${sensor.id}</strong> - ${sensor.temp}°F<br>
+                    <small>${sensor.coords[0].toFixed(4)}, ${sensor.coords[1].toFixed(4)}</small>
+                `;
+                item.onclick = () => {
+                    map.setView(sensor.coords, 16);
+                    updateCoordinatesDisplay(sensor.coords[0], sensor.coords[1]);
+                };
+                listDiv.appendChild(item);
+            });
+        }
+
+        function updateCoordinatesDisplay(lat, lng) {
+            document.getElementById('current-coords').innerHTML = `
+                Lat: ${lat.toFixed(6)}<br>
+                Lng: ${lng.toFixed(6)}
+            `;
+        }
+
+        // Tactical Operation Functions
+        function showAllAssets() {
+            // Zoom to fit all assets
+            const group = new L.featureGroup([
+                ...militaryAssets.map(a => a.marker),
+                ...heatSensors.map(s => s.marker)
+            ]);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+
+        function findNearestThreat() {
+            // Find critical heat sensor
+            const criticalSensors = heatSensors.filter(s => s.status === 'critical');
+            if (criticalSensors.length > 0) {
+                const sensor = criticalSensors[0];
+                map.setView(sensor.coords, 16);
+                sensor.marker.openPopup();
+                
+                document.getElementById('route-info').style.display = 'block';
+                document.getElementById('route-details').innerHTML = `
+                    <strong>Nearest Critical Threat:</strong><br>
+                    ${sensor.id} - ${sensor.temp}°F<br>
+                    Location: ${sensor.coords[0].toFixed(6)}, ${sensor.coords[1].toFixed(6)}<br>
+                    <em>Immediate response required</em>
+                `;
+            }
+        }
+
+        function planEvacuation() {
+            // Show evacuation route to airbase
+            if (currentRoute) {
+                map.removeControl(currentRoute);
+            }
+
+            const centerPoint = PUNE_TACTICAL.center;
+            const airbasePoint = PUNE_TACTICAL.airbase;
+
+            currentRoute = L.Routing.control({
+                waypoints: [
+                    L.latLng(centerPoint[0], centerPoint[1]),
+                    L.latLng(airbasePoint[0], airbasePoint[1])
+                ],
+                routeWhileDragging: false,
+                lineOptions: {
+                    styles: [{ color: '#00ff00', weight: 4, opacity: 0.8 }]
+                }
+            }).addTo(map);
+
+            document.getElementById('route-info').style.display = 'block';
+            document.getElementById('route-details').innerHTML = `
+                <strong>Evacuation Route:</strong><br>
+                From: Command Center<br>
+                To: Pune Airbase<br>
+                Status: ACTIVE<br>
+                <em>Route displayed in GREEN</em>
+            `;
+        }
+
+        function deployDrones() {
+            // Simulate drone deployment
+            const droneTargets = heatSensors.filter(s => s.status === 'critical' || s.status === 'warning');
+            
+            document.getElementById('route-info').style.display = 'block';
+            document.getElementById('route-details').innerHTML = `
+                <strong>Drone Deployment:</strong><br>
+                Targets: ${droneTargets.length} sensors<br>
+                Mission: Reconnaissance<br>
+                ETA: 5 minutes<br>
+                Status: DEPLOYING 🚁
+            `;
+
+            // Add drone markers
+            droneTargets.forEach((target, index) => {
+                setTimeout(() => {
+                    const droneMarker = L.marker(target.coords)
+                        .addTo(map)
+                        .bindPopup(`🚁 Drone ${index + 1} - Investigating ${target.id}`);
+                    
+                    droneMarker.setIcon(L.icon({
+                        iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                            <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="24" height="24" fill="#ffff00"/>
+                                <text x="12" y="15" text-anchor="middle" fill="black" font-size="12">🚁</text>
+                            </svg>
+                        `),
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 24]
+                    }));
+                }, index * 1000);
+            });
+        }
+
+        function selectBase(name, lat, lng) {
+            map.setView([lat, lng], 16);
+            updateCoordinatesDisplay(lat, lng);
+            
+            document.getElementById('route-info').style.display = 'block';
+            document.getElementById('route-details').innerHTML = `
+                <strong>Selected Base:</strong><br>
+                ${name}<br>
+                Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>
+                Status: OPERATIONAL
+            `;
+        }
+
+        function investigateSensor(sensorId) {
+            const sensor = heatSensors.find(s => s.id === sensorId);
+            if (sensor) {
+                map.setView(sensor.coords, 17);
+                
+                document.getElementById('route-info').style.display = 'block';
+                document.getElementById('route-details').innerHTML = `
+                    <strong>Investigation Report:</strong><br>
+                    Sensor: ${sensor.id}<br>
+                    Temperature: ${sensor.temp}°F<br>
+                    Status: ${sensor.status.toUpperCase()}<br>
+                    Action: ${sensor.status === 'critical' ? 'IMMEDIATE RESPONSE' : 'MONITOR'}
+                `;
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'military-homepage.html';
+        }
+
+        // Initialize map when page loads
+        document.addEventListener('DOMContentLoaded', initTacticalMap);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            map.invalidateSize();
+        });
+    </script>
+</body>
+</html>

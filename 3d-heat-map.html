@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌡️ 3D Heat Visualization - Military Command</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #threejs-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            width: 320px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .heat-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff6600;
+            border-radius: 10px;
+            padding: 20px;
+            width: 300px;
+        }
+
+        h2 {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        h3 {
+            color: #ffff00;
+            margin: 15px 0 8px 0;
+            font-size: 14px;
+        }
+
+        .sensor-reading {
+            background: rgba(0, 50, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .temperature-high { border-color: #ff0000; background: rgba(50, 0, 0, 0.8); }
+        .temperature-critical { border-color: #ff6600; background: rgba(50, 25, 0, 0.8); }
+        .temperature-normal { border-color: #00ff00; background: rgba(0, 50, 0, 0.8); }
+
+        .control-button {
+            background: linear-gradient(45deg, #0066ff, #00aaff);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .control-button:hover {
+            background: linear-gradient(45deg, #00aaff, #00ddff);
+            transform: scale(1.05);
+        }
+
+        .back-button {
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            position: absolute;
+            top: 20px;
+            right: 350px;
+            z-index: 1001;
+        }
+
+        .back-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+            transform: scale(1.05);
+        }
+
+        .temperature-scale {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 15px;
+            width: 200px;
+        }
+
+        .scale-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+
+        .scale-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #fff;
+        }
+
+        .coordinates-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            padding: 15px;
+            width: 250px;
+            font-size: 12px;
+        }
+
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 500;
+            text-align: center;
+            color: #00ff00;
+            font-size: 24px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 255, 0, 0.3);
+            border-top: 4px solid #00ff00;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .range-input {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            background: #333;
+            outline: none;
+            border-radius: 15px;
+            height: 6px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00ff00;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="threejs-container">
+        <div class="loading-indicator" id="loading">
+            <div class="spinner"></div>
+            <div>Loading 3D Heat Map...</div>
+        </div>
+    </div>
+
+    <button class="back-button" onclick="goHome()">🏠 Back to Command Center</button>
+
+    <div class="control-panel">
+        <h2>🌡️ Heat Sensor Control</h2>
+        
+        <div>
+            <h3>📊 Live Sensor Readings</h3>
+            <div id="sensor-readings"></div>
+        </div>
+
+        <div>
+            <h3>🎮 3D Controls</h3>
+            <button class="control-button" onclick="resetCamera()">📷 Reset View</button>
+            <button class="control-button" onclick="toggleAnimation()">⏯️ Toggle Animation</button>
+            <button class="control-button" onclick="changeColorScheme()">🎨 Color Scheme</button>
+        </div>
+
+        <div>
+            <h3>⚙️ Visualization Settings</h3>
+            <label>Heat Intensity:</label>
+            <input type="range" id="intensity-slider" min="0.1" max="2.0" step="0.1" value="1.0" 
+                   onchange="updateHeatIntensity(this.value)">
+            <span id="intensity-value">1.0</span>
+            
+            <label>Detection Range (km):</label>
+            <input type="range" id="range-slider" min="1" max="10" step="1" value="5" 
+                   onchange="updateDetectionRange(this.value)">
+            <span id="range-value">5</span>
+        </div>
+
+        <div>
+            <h3>🚨 Alert Thresholds</h3>
+            <div>Critical: >95°F</div>
+            <div>High: 85-95°F</div>
+            <div>Normal: <85°F</div>
+        </div>
+    </div>
+
+    <div class="heat-controls">
+        <h2>🔥 Heat Map Data</h2>
+        
+        <div>
+            <h3>📍 Active Hotspots</h3>
+            <div id="hotspot-list"></div>
+        </div>
+
+        <div>
+            <h3>📈 Statistics</h3>
+            <div id="heat-stats"></div>
+        </div>
+    </div>
+
+    <div class="temperature-scale">
+        <h3>🌡️ Temperature Scale</h3>
+        <div class="scale-item">
+            <div class="scale-color" style="background: #ff0000;"></div>
+            <span>Critical (>95°F)</span>
+        </div>
+        <div class="scale-item">
+            <div class="scale-color" style="background: #ff6600;"></div>
+            <span>High (85-95°F)</span>
+        </div>
+        <div class="scale-item">
+            <div class="scale-color" style="background: #ffff00;"></div>
+            <span>Elevated (75-85°F)</span>
+        </div>
+        <div class="scale-item">
+            <div class="scale-color" style="background: #00ff00;"></div>
+            <span>Normal (<75°F)</span>
+        </div>
+    </div>
+
+    <div class="coordinates-display">
+        <h3>📍 3D Coordinates</h3>
+        <div>X: <span id="coord-x">0.00</span></div>
+        <div>Y: <span id="coord-y">0.00</span></div>
+        <div>Z: <span id="coord-z">0.00</span></div>
+        <div>Temperature: <span id="current-temp">--°F</span></div>
+        <div>GPS: <span id="gps-coords">--.--, ---.--</span></div>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // 3D Heat Visualization System
+        let scene, camera, renderer, controls;
+        let heatPoints = [];
+        let animationId;
+        let isAnimating = true;
+        let colorScheme = 0;
+
+        // Real heat sensor data (simulated with realistic coordinates)
+        const realHeatData = [
+            { id: 'HS-001', lat: 18.5154, lng: 73.8517, temp: 92.5, x: -50, y: 10, z: -30 },
+            { id: 'HS-002', lat: 18.5254, lng: 73.8617, temp: 87.2, x: 20, y: 15, z: 40 },
+            { id: 'HS-003', lat: 18.5354, lng: 73.8717, temp: 98.7, x: 60, y: 8, z: -10 },
+            { id: 'HS-004', lat: 18.5454, lng: 73.8817, temp: 76.1, x: -20, y: 25, z: 70 },
+            { id: 'HS-005', lat: 18.5554, lng: 73.8917, temp: 104.3, x: 80, y: 5, z: 20 },
+            { id: 'HS-006', lat: 18.5654, lng: 73.9017, temp: 91.8, x: 30, y: 35, z: -60 },
+            { id: 'HS-007', lat: 18.5754, lng: 73.9117, temp: 89.4, x: -70, y: 20, z: 50 },
+            { id: 'HS-008', lat: 18.5854, lng: 73.9217, temp: 102.1, x: 45, y: 12, z: 35 }
+        ];
+
+        function initThreeJS() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(100, 100, 100);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('threejs-container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.1;
+
+            // Add grid
+            const gridHelper = new THREE.GridHelper(200, 20, 0x00ff00, 0x004400);
+            scene.add(gridHelper);
+
+            // Add axes helper
+            const axesHelper = new THREE.AxesHelper(50);
+            scene.add(axesHelper);
+
+            // Create heat points
+            createHeatPoints();
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(100, 100, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Hide loading indicator
+            document.getElementById('loading').style.display = 'none';
+
+            // Start animation
+            animate();
+
+            console.log('🌡️ 3D Heat Visualization initialized');
+        }
+
+        function createHeatPoints() {
+            realHeatData.forEach(sensor => {
+                // Create heat sphere
+                const geometry = new THREE.SphereGeometry(getHeatRadius(sensor.temp), 16, 16);
+                const material = new THREE.MeshLambertMaterial({
+                    color: getHeatColor(sensor.temp),
+                    transparent: true,
+                    opacity: 0.7
+                });
+
+                const heatSphere = new THREE.Mesh(geometry, material);
+                heatSphere.position.set(sensor.x, sensor.y, sensor.z);
+                heatSphere.userData = sensor;
+                scene.add(heatSphere);
+
+                // Create label
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'heat-label';
+                labelDiv.textContent = `${sensor.id}: ${sensor.temp}°F`;
+                labelDiv.style.position = 'absolute';
+                labelDiv.style.color = '#00ff00';
+                labelDiv.style.fontSize = '12px';
+                labelDiv.style.fontWeight = 'bold';
+                labelDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
+                labelDiv.style.padding = '2px 6px';
+                labelDiv.style.borderRadius = '3px';
+                labelDiv.style.pointerEvents = 'none';
+                document.body.appendChild(labelDiv);
+
+                heatPoints.push({
+                    sphere: heatSphere,
+                    label: labelDiv,
+                    data: sensor
+                });
+            });
+
+            updateSensorReadings();
+            updateHeatStats();
+            updateHotspots();
+        }
+
+        function getHeatColor(temperature) {
+            if (temperature > 95) return 0xff0000;      // Red - Critical
+            if (temperature > 85) return 0xff6600;      // Orange - High
+            if (temperature > 75) return 0xffff00;      // Yellow - Elevated
+            return 0x00ff00;                            // Green - Normal
+        }
+
+        function getHeatRadius(temperature) {
+            return Math.max(3, temperature / 10);
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            if (isAnimating) {
+                // Animate heat points
+                heatPoints.forEach((point, index) => {
+                    const time = Date.now() * 0.001;
+                    point.sphere.position.y = point.data.y + Math.sin(time + index) * 2;
+                    
+                    // Update temperature (simulate fluctuation)
+                    const tempVariation = Math.sin(time * 0.5 + index) * 2;
+                    const newTemp = point.data.temp + tempVariation;
+                    
+                    // Update color based on new temperature
+                    point.sphere.material.color.setHex(getHeatColor(newTemp));
+                    
+                    // Update label position
+                    const vector = new THREE.Vector3();
+                    vector.setFromMatrixPosition(point.sphere.matrixWorld);
+                    vector.project(camera);
+
+                    const x = (vector.x *  .5 + .5) * window.innerWidth;
+                    const y = (vector.y * -.5 + .5) * window.innerHeight;
+
+                    point.label.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
+                    point.label.textContent = `${point.data.id}: ${newTemp.toFixed(1)}°F`;
+                });
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+
+            // Update coordinates display
+            updateCoordinatesDisplay();
+        }
+
+        function updateSensorReadings() {
+            const readingsDiv = document.getElementById('sensor-readings');
+            readingsDiv.innerHTML = '';
+
+            realHeatData.forEach(sensor => {
+                const reading = document.createElement('div');
+                reading.className = `sensor-reading ${getTemperatureClass(sensor.temp)}`;
+                reading.innerHTML = `
+                    <strong>${sensor.id}</strong><br>
+                    Temp: ${sensor.temp}°F<br>
+                    GPS: ${sensor.lat.toFixed(6)}, ${sensor.lng.toFixed(6)}<br>
+                    3D: (${sensor.x}, ${sensor.y}, ${sensor.z})
+                `;
+                readingsDiv.appendChild(reading);
+            });
+        }
+
+        function updateHeatStats() {
+            const statsDiv = document.getElementById('heat-stats');
+            const temps = realHeatData.map(s => s.temp);
+            const avg = temps.reduce((a, b) => a + b) / temps.length;
+            const max = Math.max(...temps);
+            const min = Math.min(...temps);
+            const critical = temps.filter(t => t > 95).length;
+
+            statsDiv.innerHTML = `
+                <div>Total Sensors: ${realHeatData.length}</div>
+                <div>Average Temp: ${avg.toFixed(1)}°F</div>
+                <div>Max Temp: ${max}°F</div>
+                <div>Min Temp: ${min}°F</div>
+                <div>Critical Alerts: ${critical}</div>
+            `;
+        }
+
+        function updateHotspots() {
+            const hotspotsDiv = document.getElementById('hotspot-list');
+            const hotspots = realHeatData.filter(s => s.temp > 85).sort((a, b) => b.temp - a.temp);
+            
+            hotspotsDiv.innerHTML = '';
+            hotspots.forEach(hotspot => {
+                const div = document.createElement('div');
+                div.className = `sensor-reading ${getTemperatureClass(hotspot.temp)}`;
+                div.innerHTML = `
+                    <strong>${hotspot.id}</strong> - ${hotspot.temp}°F<br>
+                    <small>GPS: ${hotspot.lat}, ${hotspot.lng}</small>
+                `;
+                hotspotsDiv.appendChild(div);
+            });
+        }
+
+        function getTemperatureClass(temp) {
+            if (temp > 95) return 'temperature-critical';
+            if (temp > 85) return 'temperature-high';
+            return 'temperature-normal';
+        }
+
+        function updateCoordinatesDisplay() {
+            // Update with camera position for now
+            document.getElementById('coord-x').textContent = camera.position.x.toFixed(2);
+            document.getElementById('coord-y').textContent = camera.position.y.toFixed(2);
+            document.getElementById('coord-z').textContent = camera.position.z.toFixed(2);
+        }
+
+        // Control functions
+        function resetCamera() {
+            camera.position.set(100, 100, 100);
+            controls.reset();
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+        }
+
+        function changeColorScheme() {
+            colorScheme = (colorScheme + 1) % 3;
+            heatPoints.forEach(point => {
+                // Apply different color schemes
+                const baseColor = getHeatColor(point.data.temp);
+                if (colorScheme === 1) {
+                    point.sphere.material.color.setHex(baseColor ^ 0x404040);
+                } else if (colorScheme === 2) {
+                    point.sphere.material.color.setHex(baseColor ^ 0x202020);
+                } else {
+                    point.sphere.material.color.setHex(baseColor);
+                }
+            });
+        }
+
+        function updateHeatIntensity(value) {
+            document.getElementById('intensity-value').textContent = value;
+            heatPoints.forEach(point => {
+                point.sphere.scale.set(value, value, value);
+            });
+        }
+
+        function updateDetectionRange(value) {
+            document.getElementById('range-value').textContent = value;
+            // Update detection range visualization
+        }
+
+        function goHome() {
+            window.location.href = 'military-homepage.html';
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initThreeJS);
+    </script>
+</body>
+</html>

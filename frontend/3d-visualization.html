@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Military AI Simulation - 3D Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            color: #00ff00;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+            min-width: 300px;
+        }
+
+        .status-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+            min-width: 400px;
+        }
+
+        .mission-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ffaa00;
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+            min-width: 350px;
+        }
+
+        .panel-title {
+            color: #00ff00;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            color: #00ff00;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 5px;
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            border-radius: 3px;
+        }
+
+        .control-group button {
+            width: 100%;
+            padding: 8px;
+            background: #003300;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-group button:hover {
+            background: #006600;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .status-value {
+            color: #ffff00;
+        }
+
+        .threat-high {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        .threat-medium {
+            color: #ffaa00;
+        }
+
+        .threat-low {
+            color: #00ff00;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-text {
+            color: #00ff00;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 20px;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #003300, #00ff00);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .coordinates-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 10px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-text">INITIALIZING MILITARY AI SIMULATION</div>
+        <div class="loading-bar">
+            <div id="loading-progress" class="loading-progress"></div>
+        </div>
+        <div id="loading-status" style="color: #00ff00; margin-top: 10px; font-size: 14px;">
+            Loading terrain data...
+        </div>
+    </div>
+
+    <!-- Main Canvas Container -->
+    <div id="canvas-container">
+        <!-- UI Overlay -->
+        <div id="ui-overlay">
+            <!-- Mission Control Panel -->
+            <div class="mission-panel">
+                <div class="panel-title">MISSION CONTROL</div>
+                
+                <div class="control-group">
+                    <label>Active Mission:</label>
+                    <select id="mission-select">
+                        <option value="patrol">Area Patrol</option>
+                        <option value="reconnaissance">Reconnaissance</option>
+                        <option value="escort">Convoy Escort</option>
+                        <option value="search">Search & Rescue</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Formation Type:</label>
+                    <select id="formation-select">
+                        <option value="line">Line Formation</option>
+                        <option value="wedge">Wedge Formation</option>
+                        <option value="diamond">Diamond Formation</option>
+                        <option value="circle">Circle Formation</option>
+                        <option value="echelon">Echelon Formation</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <button onclick="deploySwarm()">DEPLOY SWARM</button>
+                </div>
+
+                <div class="control-group">
+                    <button onclick="recallSwarm()">RECALL ALL UNITS</button>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="panel-title">TACTICAL CONTROL</div>
+                
+                <div class="control-group">
+                    <label>View Mode:</label>
+                    <select id="view-mode" onchange="changeViewMode()">
+                        <option value="tactical">Tactical View</option>
+                        <option value="surveillance">Surveillance View</option>
+                        <option value="thermal">Thermal Imaging</option>
+                        <option value="satellite">Satellite View</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Agent Count: <span id="agent-count">10</span></label>
+                    <input type="range" id="agent-slider" min="5" max="50" value="10" 
+                           onchange="updateAgentCount(this.value)">
+                </div>
+
+                <div class="control-group">
+                    <label>Simulation Speed:</label>
+                    <input type="range" id="speed-slider" min="0.1" max="3" value="1" step="0.1"
+                           onchange="updateSimulationSpeed(this.value)">
+                </div>
+
+                <div class="control-group">
+                    <button onclick="toggleThreatDetection()">TOGGLE THREAT DETECTION</button>
+                </div>
+
+                <div class="control-group">
+                    <button onclick="toggleAutonomousMode()">TOGGLE AUTONOMOUS MODE</button>
+                </div>
+            </div>
+
+            <!-- Status Panel -->
+            <div class="status-panel">
+                <div class="panel-title">SYSTEM STATUS</div>
+                
+                <div class="status-item">
+                    <span>Active Agents:</span>
+                    <span class="status-value" id="active-agents">10</span>
+                </div>
+                
+                <div class="status-item">
+                    <span>Threat Level:</span>
+                    <span class="status-value threat-low" id="threat-level">LOW</span>
+                </div>
+                
+                <div class="status-item">
+                    <span>Communication Status:</span>
+                    <span class="status-value" id="comm-status">OPTIMAL</span>
+                </div>
+                
+                <div class="status-item">
+                    <span>Formation Integrity:</span>
+                    <span class="status-value" id="formation-integrity">98%</span>
+                </div>
+                
+                <div class="status-item">
+                    <span>Mission Progress:</span>
+                    <span class="status-value" id="mission-progress">65%</span>
+                </div>
+                
+                <div class="status-item">
+                    <span>Average Energy:</span>
+                    <span class="status-value" id="avg-energy">87%</span>
+                </div>
+                
+                <div class="status-item">
+                    <span>System Uptime:</span>
+                    <span class="status-value" id="uptime">02:34:16</span>
+                </div>
+            </div>
+
+            <!-- Coordinates Display -->
+            <div class="coordinates-display">
+                <div>Camera: <span id="camera-coords">X: 0, Y: 0, Z: 100</span></div>
+                <div>Target: <span id="target-coords">X: 0, Y: 0, Z: 0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let terrain, agents = [], threats = [];
+        let animationId;
+        let simulationSpeed = 1.0;
+        let autonomousMode = true;
+        let threatDetectionEnabled = true;
+        let currentFormation = 'line';
+        let missionActive = false;
+        
+        // Simulation parameters
+        const TERRAIN_SIZE = 200;
+        const AGENT_COUNT = 10;
+        const UPDATE_INTERVAL = 100; // milliseconds
+        
+        // Colors and materials
+        const COLORS = {
+            terrain: 0x2d4a2b,
+            agent: 0x00ff00,
+            threat: 0xff0000,
+            waypoint: 0xffff00,
+            communication: 0x0088ff,
+            formation: 0x88ff88
+        };
+
+        // Initialize the simulation
+        function init() {
+            updateLoadingProgress(10, "Initializing 3D engine...");
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x001122);
+            scene.fog = new THREE.Fog(0x001122, 100, 500);
+            
+            updateLoadingProgress(20, "Setting up camera...");
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 100, 100);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            updateLoadingProgress(40, "Creating terrain...");
+            
+            // Create controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2;
+            
+            // Create lighting
+            setupLighting();
+            
+            updateLoadingProgress(60, "Generating terrain...");
+            
+            // Create terrain
+            createTerrain();
+            
+            updateLoadingProgress(80, "Deploying agents...");
+            
+            // Create agents
+            createAgents(AGENT_COUNT);
+            
+            updateLoadingProgress(90, "Initializing AI systems...");
+            
+            // Create initial threats for demonstration
+            createThreats(3);
+            
+            updateLoadingProgress(100, "Launch complete!");
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.display = 'none';
+                startSimulation();
+            }, 1000);
+        }
+
+        function updateLoadingProgress(percent, status) {
+            document.getElementById('loading-progress').style.width = percent + '%';
+            document.getElementById('loading-status').textContent = status;
+        }
+
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            // Directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            scene.add(directionalLight);
+            
+            // Point light for dramatic effect
+            const pointLight = new THREE.PointLight(0x00ff00, 0.5, 100);
+            pointLight.position.set(0, 20, 0);
+            scene.add(pointLight);
+        }
+
+        function createTerrain() {
+            // Create heightmap-based terrain
+            const geometry = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, 64, 64);
+            
+            // Generate height data
+            const vertices = geometry.attributes.position.array;
+            for (let i = 0; i < vertices.length; i += 3) {
+                const x = vertices[i];
+                const y = vertices[i + 1];
+                const noise = Math.sin(x * 0.02) * Math.cos(y * 0.02) * 5 +
+                             Math.sin(x * 0.05) * Math.cos(y * 0.05) * 2;
+                vertices[i + 2] = noise;
+            }
+            
+            geometry.attributes.position.needsUpdate = true;
+            geometry.computeVertexNormals();
+            
+            // Create material with texture-like appearance
+            const material = new THREE.MeshLambertMaterial({
+                color: COLORS.terrain,
+                wireframe: false
+            });
+            
+            terrain = new THREE.Mesh(geometry, material);
+            terrain.rotation.x = -Math.PI / 2;
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+            
+            // Add grid overlay
+            const gridHelper = new THREE.GridHelper(TERRAIN_SIZE, 20, 0x004400, 0x004400);
+            gridHelper.position.y = 0.1;
+            scene.add(gridHelper);
+        }
+
+        function createAgents(count) {
+            // Clear existing agents
+            agents.forEach(agent => scene.remove(agent.mesh));
+            agents = [];
+            
+            for (let i = 0; i < count; i++) {
+                const agent = createAgent(i);
+                agents.push(agent);
+                scene.add(agent.mesh);
+            }
+            
+            // Update formation
+            updateFormation();
+        }
+
+        function createAgent(id) {
+            // Create agent geometry
+            const geometry = new THREE.ConeGeometry(1, 3, 8);
+            const material = new THREE.MeshPhongMaterial({
+                color: COLORS.agent,
+                emissive: COLORS.agent,
+                emissiveIntensity: 0.3
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Position agents randomly initially
+            const x = (Math.random() - 0.5) * 50;
+            const z = (Math.random() - 0.5) * 50;
+            const y = getTerrainHeight(x, z) + 2;
+            
+            mesh.position.set(x, y, z);
+            
+            // Create agent object
+            const agent = {
+                id: id,
+                mesh: mesh,
+                position: new THREE.Vector3(x, y, z),
+                velocity: new THREE.Vector3(),
+                target: new THREE.Vector3(x, y, z),
+                energy: 100,
+                status: 'active',
+                role: ['scout', 'assault', 'support'][Math.floor(Math.random() * 3)],
+                threatLevel: 0,
+                communicationRange: 30,
+                trails: []
+            };
+            
+            // Add ID label
+            createAgentLabel(agent);
+            
+            // Add communication radius visualization
+            createCommunicationRadius(agent);
+            
+            return agent;
+        }
+
+        function createAgentLabel(agent) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 64;
+            canvas.height = 32;
+            
+            context.fillStyle = '#000000';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            context.fillStyle = '#00ff00';
+            context.font = '12px Courier';
+            context.textAlign = 'center';
+            context.fillText(`A${agent.id.toString().padStart(2, '0')}`, 32, 20);
+            
+            const texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true;
+            
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(8, 4, 1);
+            sprite.position.set(0, 5, 0);
+            
+            agent.mesh.add(sprite);
+        }
+
+        function createCommunicationRadius(agent) {
+            const geometry = new THREE.RingGeometry(agent.communicationRange - 1, agent.communicationRange, 32);
+            const material = new THREE.MeshBasicMaterial({
+                color: COLORS.communication,
+                transparent: true,
+                opacity: 0.1,
+                side: THREE.DoubleSide
+            });
+            
+            const ring = new THREE.Mesh(geometry, material);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = 0.2;
+            ring.visible = false;
+            
+            agent.communicationRing = ring;
+            scene.add(ring);
+        }
+
+        function createThreats(count) {
+            threats.forEach(threat => scene.remove(threat.mesh));
+            threats = [];
+            
+            for (let i = 0; i < count; i++) {
+                const threat = createThreat(i);
+                threats.push(threat);
+                scene.add(threat.mesh);
+            }
+        }
+
+        function createThreat(id) {
+            const geometry = new THREE.BoxGeometry(2, 2, 4);
+            const material = new THREE.MeshPhongMaterial({
+                color: COLORS.threat,
+                emissive: COLORS.threat,
+                emissiveIntensity: 0.5
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            
+            const x = (Math.random() - 0.5) * 80;
+            const z = (Math.random() - 0.5) * 80;
+            const y = getTerrainHeight(x, z) + 1;
+            
+            mesh.position.set(x, y, z);
+            
+            // Add warning beacon
+            const beaconGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+            const beaconMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                transparent: true,
+                opacity: 0.8
+            });
+            const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
+            beacon.position.y = 3;
+            mesh.add(beacon);
+            
+            return {
+                id: id,
+                mesh: mesh,
+                position: new THREE.Vector3(x, y, z),
+                type: ['hostile_vehicle', 'enemy_personnel', 'weapon_system'][Math.floor(Math.random() * 3)],
+                threatLevel: Math.random() * 0.5 + 0.5,
+                detected: false,
+                beacon: beacon
+            };
+        }
+
+        function getTerrainHeight(x, z) {
+            // Simple height calculation based on terrain generation
+            return Math.sin(x * 0.02) * Math.cos(z * 0.02) * 5 +
+                   Math.sin(x * 0.05) * Math.cos(z * 0.05) * 2;
+        }
+
+        function updateFormation() {
+            if (agents.length === 0) return;
+            
+            const center = new THREE.Vector3(0, 0, 0);
+            const spacing = 8;
+            
+            let positions = [];
+            
+            switch (currentFormation) {
+                case 'line':
+                    positions = generateLineFormation(center, agents.length, spacing);
+                    break;
+                case 'wedge':
+                    positions = generateWedgeFormation(center, agents.length, spacing);
+                    break;
+                case 'diamond':
+                    positions = generateDiamondFormation(center, agents.length, spacing);
+                    break;
+                case 'circle':
+                    positions = generateCircleFormation(center, agents.length, spacing);
+                    break;
+                case 'echelon':
+                    positions = generateEchelonFormation(center, agents.length, spacing);
+                    break;
+            }
+            
+            agents.forEach((agent, index) => {
+                if (index < positions.length) {
+                    agent.target = positions[index].clone();
+                    agent.target.y = getTerrainHeight(agent.target.x, agent.target.z) + 2;
+                }
+            });
+        }
+
+        function generateLineFormation(center, count, spacing) {
+            const positions = [];
+            const startOffset = -(count - 1) * spacing / 2;
+            
+            for (let i = 0; i < count; i++) {
+                const offset = startOffset + i * spacing;
+                positions.push(new THREE.Vector3(center.x + offset, center.y, center.z));
+            }
+            
+            return positions;
+        }
+
+        function generateWedgeFormation(center, count, spacing) {
+            const positions = [center.clone()];
+            
+            for (let i = 1; i < count; i++) {
+                const side = i % 2 === 1 ? 1 : -1;
+                const rank = Math.ceil(i / 2);
+                
+                const x = center.x - rank * spacing * 0.8;
+                const z = center.z + side * rank * spacing * 0.6;
+                
+                positions.push(new THREE.Vector3(x, center.y, z));
+            }
+            
+            return positions;
+        }
+
+        function generateDiamondFormation(center, count, spacing) {
+            const positions = [];
+            const radius = spacing * Math.max(1, Math.ceil(count / 4));
+            
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const x = center.x + Math.cos(angle) * radius;
+                const z = center.z + Math.sin(angle) * radius;
+                positions.push(new THREE.Vector3(x, center.y, z));
+            }
+            
+            return positions;
+        }
+
+        function generateCircleFormation(center, count, spacing) {
+            const positions = [];
+            const radius = spacing * count / (2 * Math.PI);
+            
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const x = center.x + Math.cos(angle) * radius;
+                const z = center.z + Math.sin(angle) * radius;
+                positions.push(new THREE.Vector3(x, center.y, z));
+            }
+            
+            return positions;
+        }
+
+        function generateEchelonFormation(center, count, spacing) {
+            const positions = [];
+            
+            for (let i = 0; i < count; i++) {
+                const x = center.x - i * spacing * 0.7;
+                const z = center.z - i * spacing * 0.7;
+                positions.push(new THREE.Vector3(x, center.y, z));
+            }
+            
+            return positions;
+        }
+
+        function updateAgents() {
+            agents.forEach(agent => {
+                if (autonomousMode) {
+                    // Move towards target
+                    const direction = agent.target.clone().sub(agent.position).normalize();
+                    const speed = 0.5 * simulationSpeed;
+                    
+                    agent.velocity.copy(direction.multiplyScalar(speed));
+                    agent.position.add(agent.velocity);
+                    
+                    // Update mesh position
+                    agent.mesh.position.copy(agent.position);
+                    
+                    // Update rotation to face movement direction
+                    if (agent.velocity.length() > 0.1) {
+                        agent.mesh.lookAt(agent.position.clone().add(agent.velocity));
+                    }
+                    
+                    // Update communication ring position
+                    if (agent.communicationRing) {
+                        agent.communicationRing.position.copy(agent.position);
+                        agent.communicationRing.position.y = 0.2;
+                    }
+                    
+                    // Simple energy consumption
+                    agent.energy = Math.max(0, agent.energy - 0.01);
+                    
+                    // Update agent color based on energy
+                    const energyRatio = agent.energy / 100;
+                    agent.mesh.material.color.setRGB(
+                        1 - energyRatio,
+                        energyRatio,
+                        0
+                    );
+                }
+            });
+        }
+
+        function updateThreats() {
+            threats.forEach(threat => {
+                // Animate threat beacons
+                threat.beacon.material.opacity = 0.5 + 0.5 * Math.sin(Date.now() * 0.01);
+                
+                // Simple movement for some threats
+                if (Math.random() < 0.001) {
+                    const newX = threat.position.x + (Math.random() - 0.5) * 2;
+                    const newZ = threat.position.z + (Math.random() - 0.5) * 2;
+                    threat.position.set(newX, getTerrainHeight(newX, newZ) + 1, newZ);
+                    threat.mesh.position.copy(threat.position);
+                }
+            });
+        }
+
+        function detectThreats() {
+            if (!threatDetectionEnabled) return;
+            
+            let overallThreatLevel = 0;
+            let detectedThreats = 0;
+            
+            agents.forEach(agent => {
+                threats.forEach(threat => {
+                    const distance = agent.position.distanceTo(threat.position);
+                    
+                    if (distance < 25) {
+                        threat.detected = true;
+                        overallThreatLevel = Math.max(overallThreatLevel, threat.threatLevel);
+                        detectedThreats++;
+                        
+                        // Change agent color to indicate threat detection
+                        agent.mesh.material.emissiveIntensity = 0.6;
+                    }
+                });
+            });
+            
+            // Update threat level display
+            const threatElement = document.getElementById('threat-level');
+            if (overallThreatLevel > 0.7) {
+                threatElement.textContent = 'CRITICAL';
+                threatElement.className = 'status-value threat-high';
+            } else if (overallThreatLevel > 0.4) {
+                threatElement.textContent = 'MEDIUM';
+                threatElement.className = 'status-value threat-medium';
+            } else if (detectedThreats > 0) {
+                threatElement.textContent = 'LOW';
+                threatElement.className = 'status-value threat-low';
+            } else {
+                threatElement.textContent = 'NONE';
+                threatElement.className = 'status-value threat-low';
+            }
+        }
+
+        function updateUI() {
+            // Update status panel
+            document.getElementById('active-agents').textContent = agents.filter(a => a.status === 'active').length;
+            document.getElementById('comm-status').textContent = 'OPTIMAL';
+            
+            // Calculate formation integrity
+            let totalDistance = 0;
+            agents.forEach(agent => {
+                totalDistance += agent.position.distanceTo(agent.target);
+            });
+            const avgDistance = totalDistance / agents.length;
+            const integrity = Math.max(0, 100 - avgDistance * 2);
+            document.getElementById('formation-integrity').textContent = Math.round(integrity) + '%';
+            
+            // Update energy display
+            const avgEnergy = agents.reduce((sum, agent) => sum + agent.energy, 0) / agents.length;
+            document.getElementById('avg-energy').textContent = Math.round(avgEnergy) + '%';
+            
+            // Update camera coordinates
+            document.getElementById('camera-coords').textContent = 
+                `X: ${camera.position.x.toFixed(1)}, Y: ${camera.position.y.toFixed(1)}, Z: ${camera.position.z.toFixed(1)}`;
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            
+            // Update controls
+            controls.update();
+            
+            // Update simulation
+            updateAgents();
+            updateThreats();
+            detectThreats();
+            updateUI();
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+
+        function startSimulation() {
+            animate();
+        }
+
+        // Control functions
+        function changeViewMode() {
+            const mode = document.getElementById('view-mode').value;
+            
+            switch (mode) {
+                case 'tactical':
+                    scene.background = new THREE.Color(0x001122);
+                    break;
+                case 'surveillance':
+                    scene.background = new THREE.Color(0x000000);
+                    break;
+                case 'thermal':
+                    scene.background = new THREE.Color(0x001100);
+                    break;
+                case 'satellite':
+                    scene.background = new THREE.Color(0x002244);
+                    break;
+            }
+        }
+
+        function updateAgentCount(count) {
+            document.getElementById('agent-count').textContent = count;
+            createAgents(parseInt(count));
+        }
+
+        function updateSimulationSpeed(speed) {
+            simulationSpeed = parseFloat(speed);
+        }
+
+        function toggleThreatDetection() {
+            threatDetectionEnabled = !threatDetectionEnabled;
+            
+            if (threatDetectionEnabled) {
+                threats.forEach(threat => threat.mesh.visible = true);
+            } else {
+                threats.forEach(threat => threat.mesh.visible = false);
+                document.getElementById('threat-level').textContent = 'DISABLED';
+            }
+        }
+
+        function toggleAutonomousMode() {
+            autonomousMode = !autonomousMode;
+            
+            agents.forEach(agent => {
+                if (agent.communicationRing) {
+                    agent.communicationRing.visible = autonomousMode;
+                }
+            });
+        }
+
+        function deploySwarm() {
+            const formation = document.getElementById('formation-select').value;
+            currentFormation = formation;
+            updateFormation();
+            missionActive = true;
+            
+            // Reset agent energy
+            agents.forEach(agent => {
+                agent.energy = 100;
+                agent.status = 'active';
+            });
+        }
+
+        function recallSwarm() {
+            // Move all agents to center
+            agents.forEach(agent => {
+                agent.target = new THREE.Vector3(0, getTerrainHeight(0, 0) + 2, 0);
+            });
+            missionActive = false;
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Event listeners
+        window.addEventListener('resize', onWindowResize);
+
+        // Initialize simulation on page load
+        window.addEventListener('load', init);
+
+        // Update uptime counter
+        let startTime = Date.now();
+        setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            document.getElementById('uptime').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Military AI Command Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #001122, #003366);
+            padding: 15px 30px;
+            border-bottom: 3px solid #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ff00;
+            letter-spacing: 2px;
+        }
+
+        .header .status {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            padding: 5px 10px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas: 
+                "controls main-view alerts"
+                "agents main-view missions"
+                "logs main-view analytics";
+            height: calc(100vh - 80px);
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00ff00;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls {
+            grid-area: controls;
+        }
+
+        .main-view {
+            grid-area: main-view;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .alerts {
+            grid-area: alerts;
+        }
+
+        .agents {
+            grid-area: agents;
+        }
+
+        .missions {
+            grid-area: missions;
+        }
+
+        .logs {
+            grid-area: logs;
+        }
+
+        .analytics {
+            grid-area: analytics;
+        }
+
+        .view-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .view-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .view-btn:hover,
+        .view-btn.active {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .main-content {
+            flex: 1;
+            background: #000;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #00ff00;
+        }
+
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            border-radius: 3px;
+            font-family: inherit;
+        }
+
+        .control-group button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(45deg, #003300, #006600);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .control-group button:hover {
+            background: linear-gradient(45deg, #006600, #009900);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .agent-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .agent-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .agent-status {
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 10px;
+        }
+
+        .status-active { background: #006600; }
+        .status-mission { background: #666600; }
+        .status-maintenance { background: #660000; }
+
+        .alert-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .alert-critical {
+            border-color: #ff0000;
+            color: #ff9999;
+        }
+
+        .alert-warning {
+            border-color: #ffaa00;
+            color: #ffdd99;
+        }
+
+        .alert-info {
+            border-color: #0088ff;
+            color: #99ccff;
+        }
+
+        .mission-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+        }
+
+        .mission-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .mission-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #88ff00);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .log-container {
+            height: 200px;
+            overflow-y: auto;
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 3px;
+            opacity: 0.8;
+        }
+
+        .log-timestamp {
+            color: #666;
+        }
+
+        .log-info { color: #00ff00; }
+        .log-warning { color: #ffaa00; }
+        .log-error { color: #ff0000; }
+
+        .analytics-chart {
+            height: 120px;
+            background: #000;
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .metric-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffff00;
+        }
+
+        .metric-label {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .iframe-container {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            font-size: 10px;
+            z-index: 100;
+        }
+
+        .emergency-button {
+            background: linear-gradient(45deg, #660000, #990000) !important;
+            border-color: #ff0000 !important;
+            color: #ff0000 !important;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid;
+            border-radius: 3px;
+            font-size: 10px;
+            z-index: 1000;
+        }
+
+        .connected {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .disconnected {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "main-view"
+                    "controls"
+                    "alerts"
+                    "agents"
+                    "missions"
+                    "logs"
+                    "analytics";
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>MILITARY AI COMMAND CENTER</h1>
+        <div class="status">
+            <div class="status-indicator">
+                <strong>DEFCON:</strong> <span id="defcon-level">3</span>
+            </div>
+            <div class="status-indicator">
+                <strong>CLEARANCE:</strong> <span id="clearance-level">TOP SECRET</span>
+            </div>
+            <div class="status-indicator">
+                <strong>TIME:</strong> <span id="current-time">--:--:--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div class="dashboard">
+        <!-- Controls Panel -->
+        <div class="panel controls">
+            <div class="panel-header">
+                <div class="panel-title">Mission Control</div>
+            </div>
+
+            <div class="control-group">
+                <label>Operation Type:</label>
+                <select id="operation-type">
+                    <option value="patrol">Area Patrol</option>
+                    <option value="reconnaissance">Reconnaissance</option>
+                    <option value="escort">Convoy Escort</option>
+                    <option value="search">Search & Rescue</option>
+                    <option value="surveillance">Surveillance</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Formation:</label>
+                <select id="formation-type">
+                    <option value="line">Line Formation</option>
+                    <option value="wedge">Wedge Formation</option>
+                    <option value="diamond">Diamond Formation</option>
+                    <option value="circle">Defensive Circle</option>
+                    <option value="echelon">Echelon Formation</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Agent Count: <span id="agent-count-display">10</span></label>
+                <input type="range" id="agent-count" min="5" max="50" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>Threat Sensitivity:</label>
+                <input type="range" id="threat-sensitivity" min="0.1" max="1.0" step="0.1" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <button onclick="initiateMission()">INITIATE MISSION</button>
+            </div>
+
+            <div class="control-group">
+                <button onclick="abortMission()" class="emergency-button">ABORT MISSION</button>
+            </div>
+
+            <div class="control-group">
+                <button onclick="toggleAutonomous()">TOGGLE AUTONOMOUS MODE</button>
+            </div>
+
+            <div class="control-group">
+                <button onclick="requestBackup()">REQUEST BACKUP</button>
+            </div>
+        </div>
+
+        <!-- Main View Panel -->
+        <div class="panel main-view">
+            <div class="view-selector">
+                <a href="#" class="view-btn active" onclick="switchView('tactical')">TACTICAL VIEW</a>
+                <a href="#" class="view-btn" onclick="switchView('3d')">3D VISUALIZATION</a>
+                <a href="#" class="view-btn" onclick="switchView('satellite')">SATELLITE</a>
+                <a href="#" class="view-btn" onclick="switchView('thermal')">THERMAL</a>
+            </div>
+
+            <div class="main-content">
+                <div id="tactical-view" class="view-content">
+                    <canvas id="tactical-canvas" width="800" height="600" style="width: 100%; height: 100%;"></canvas>
+                    <div class="map-overlay">
+                        <div><strong>Grid:</strong> <span id="grid-coords">A1-F6</span></div>
+                        <div><strong>Scale:</strong> 1:10000</div>
+                        <div><strong>Bearing:</strong> <span id="map-bearing">045°</span></div>
+                    </div>
+                </div>
+
+                <div id="3d-view" class="view-content" style="display: none;">
+                    <iframe src="3d-visualization.html" class="iframe-container"></iframe>
+                </div>
+
+                <div id="satellite-view" class="view-content" style="display: none;">
+                    <div class="chart-placeholder">SATELLITE IMAGERY LOADING...</div>
+                </div>
+
+                <div id="thermal-view" class="view-content" style="display: none;">
+                    <div class="chart-placeholder">THERMAL IMAGING ACTIVE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Panel -->
+        <div class="panel alerts">
+            <div class="panel-header">
+                <div class="panel-title">Active Alerts</div>
+                <div style="font-size: 10px;">
+                    <span id="alert-count">3</span> Active
+                </div>
+            </div>
+
+            <div id="alerts-container">
+                <div class="alert-item alert-warning">
+                    <div><strong>15:42</strong> - Unidentified vehicle detected in sector C-4</div>
+                </div>
+                <div class="alert-item alert-info">
+                    <div><strong>15:38</strong> - Agent A-07 low energy warning (23%)</div>
+                </div>
+                <div class="alert-item alert-critical">
+                    <div><strong>15:35</strong> - Communication disruption in Delta formation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Panel -->
+        <div class="panel agents">
+            <div class="panel-header">
+                <div class="panel-title">Agent Status</div>
+                <div style="font-size: 10px;">
+                    <span id="active-agents-count">8</span>/<span id="total-agents-count">10</span>
+                </div>
+            </div>
+
+            <div class="agent-list" id="agent-list">
+                <!-- Agents will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Missions Panel -->
+        <div class="panel missions">
+            <div class="panel-header">
+                <div class="panel-title">Mission Status</div>
+            </div>
+
+            <div id="missions-container">
+                <div class="mission-item">
+                    <div><strong>Operation Vanguard</strong></div>
+                    <div style="font-size: 10px; opacity: 0.8;">Patrol Sector Alpha</div>
+                    <div class="mission-progress">
+                        <div class="mission-progress-bar" style="width: 67%;"></div>
+                    </div>
+                    <div style="font-size: 10px; margin-top: 5px;">Progress: 67%</div>
+                </div>
+
+                <div class="mission-item">
+                    <div><strong>Recon Echo</strong></div>
+                    <div style="font-size: 10px; opacity: 0.8;">Intelligence Gathering</div>
+                    <div class="mission-progress">
+                        <div class="mission-progress-bar" style="width: 23%;"></div>
+                    </div>
+                    <div style="font-size: 10px; margin-top: 5px;">Progress: 23%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Panel -->
+        <div class="panel logs">
+            <div class="panel-header">
+                <div class="panel-title">System Logs</div>
+            </div>
+
+            <div class="log-container" id="log-container">
+                <!-- Logs will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Analytics Panel -->
+        <div class="panel analytics">
+            <div class="panel-header">
+                <div class="panel-title">Performance Analytics</div>
+            </div>
+
+            <div class="analytics-chart">
+                <canvas id="performance-chart" width="300" height="120"></canvas>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-value" id="efficiency-metric">94%</div>
+                    <div class="metric-label">Efficiency</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="uptime-metric">99.8%</div>
+                    <div class="metric-label">Uptime</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="threat-response-metric">1.2s</div>
+                    <div class="metric-label">Response Time</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="formation-accuracy-metric">97%</div>
+                    <div class="metric-label">Formation</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div id="connection-status" class="connection-status connected">
+        ● SECURE CONNECTION ESTABLISHED
+    </div>
+
+    <script>
+        // Global variables
+        let agents = [];
+        let currentView = 'tactical';
+        let missionActive = false;
+        let autonomousMode = true;
+        let logs = [];
+        let performanceData = [];
+        
+        // Initialize dashboard
+        function initDashboard() {
+            updateClock();
+            generateAgents();
+            initTacticalView();
+            initPerformanceChart();
+            startLogSimulation();
+            
+            // Update displays every second
+            setInterval(updateDashboard, 1000);
+            setInterval(updateClock, 1000);
+        }
+
+        // Update current time
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('current-time').textContent = timeString;
+        }
+
+        // Generate sample agents
+        function generateAgents() {
+            agents = [];
+            const agentCount = parseInt(document.getElementById('agent-count').value);
+            
+            for (let i = 0; i < agentCount; i++) {
+                agents.push({
+                    id: `A-${(i + 1).toString().padStart(2, '0')}`,
+                    status: Math.random() > 0.8 ? 'maintenance' : (Math.random() > 0.3 ? 'active' : 'mission'),
+                    energy: Math.floor(Math.random() * 40) + 60,
+                    position: {
+                        x: Math.random() * 100,
+                        y: Math.random() * 100
+                    },
+                    role: ['scout', 'assault', 'support'][Math.floor(Math.random() * 3)]
+                });
+            }
+            
+            updateAgentDisplay();
+        }
+
+        // Update agent display
+        function updateAgentDisplay() {
+            const agentList = document.getElementById('agent-list');
+            agentList.innerHTML = '';
+            
+            let activeCount = 0;
+            
+            agents.forEach(agent => {
+                if (agent.status === 'active' || agent.status === 'mission') {
+                    activeCount++;
+                }
+                
+                const agentItem = document.createElement('div');
+                agentItem.className = 'agent-item';
+                agentItem.innerHTML = `
+                    <div>
+                        <strong>${agent.id}</strong> - ${agent.role}
+                        <div style="font-size: 10px; opacity: 0.7;">Energy: ${agent.energy}%</div>
+                    </div>
+                    <div class="agent-status status-${agent.status}">${agent.status.toUpperCase()}</div>
+                `;
+                
+                agentList.appendChild(agentItem);
+            });
+            
+            document.getElementById('active-agents-count').textContent = activeCount;
+            document.getElementById('total-agents-count').textContent = agents.length;
+        }
+
+        // Initialize tactical view
+        function initTacticalView() {
+            const canvas = document.getElementById('tactical-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            drawTacticalMap(ctx);
+        }
+
+        // Draw tactical map
+        function drawTacticalMap(ctx) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#003300';
+            ctx.lineWidth = 1;
+            
+            for (let x = 0; x < width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y < height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // Draw agents
+            agents.forEach(agent => {
+                const x = (agent.position.x / 100) * width;
+                const y = (agent.position.y / 100) * height;
+                
+                // Agent dot
+                ctx.fillStyle = agent.status === 'active' ? '#00ff00' : 
+                               agent.status === 'mission' ? '#ffff00' : '#ff0000';
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Agent ID
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '8px Courier New';
+                ctx.fillText(agent.id, x + 5, y - 5);
+                
+                // Communication range (for active agents)
+                if (agent.status === 'active') {
+                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 30, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw threats (simulated)
+            for (let i = 0; i < 3; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Threat marker
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // Initialize performance chart
+        function initPerformanceChart() {
+            const canvas = document.getElementById('performance-chart');
+            const ctx = canvas.getContext('2d');
+            
+            // Generate sample performance data
+            for (let i = 0; i < 50; i++) {
+                performanceData.push({
+                    timestamp: Date.now() - (50 - i) * 1000,
+                    efficiency: 80 + Math.random() * 20,
+                    threats: Math.floor(Math.random() * 5),
+                    agents: Math.floor(Math.random() * 3) + 8
+                });
+            }
+            
+            drawPerformanceChart(ctx);
+        }
+
+        // Draw performance chart
+        function drawPerformanceChart(ctx) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw efficiency line
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            performanceData.forEach((data, index) => {
+                const x = (index / (performanceData.length - 1)) * width;
+                const y = height - (data.efficiency / 100) * height;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw threat indicators
+            ctx.fillStyle = '#ff0000';
+            performanceData.forEach((data, index) => {
+                if (data.threats > 2) {
+                    const x = (index / (performanceData.length - 1)) * width;
+                    const y = 10;
+                    ctx.fillRect(x - 1, y, 2, 8);
+                }
+            });
+        }
+
+        // Start log simulation
+        function startLogSimulation() {
+            const logTypes = ['info', 'warning', 'error'];
+            const messages = [
+                'Agent formation updated',
+                'Threat detected in sector',
+                'Communication established',
+                'Navigation waypoint reached',
+                'Energy level nominal',
+                'Sensor data processed',
+                'Mission parameter updated',
+                'Formation integrity verified'
+            ];
+            
+            setInterval(() => {
+                const timestamp = new Date().toLocaleTimeString();
+                const type = logTypes[Math.floor(Math.random() * logTypes.length)];
+                const message = messages[Math.floor(Math.random() * messages.length)];
+                
+                addLog(timestamp, type, message);
+            }, 3000 + Math.random() * 5000);
+        }
+
+        // Add log entry
+        function addLog(timestamp, type, message) {
+            const logContainer = document.getElementById('log-container');
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last 50 log entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        // Update dashboard
+        function updateDashboard() {
+            // Update agent positions (simulate movement)
+            agents.forEach(agent => {
+                if (agent.status === 'active' && missionActive) {
+                    agent.position.x += (Math.random() - 0.5) * 2;
+                    agent.position.y += (Math.random() - 0.5) * 2;
+                    
+                    // Keep within bounds
+                    agent.position.x = Math.max(0, Math.min(100, agent.position.x));
+                    agent.position.y = Math.max(0, Math.min(100, agent.position.y));
+                    
+                    // Simulate energy consumption
+                    agent.energy = Math.max(0, agent.energy - 0.1);
+                }
+            });
+            
+            // Update tactical view
+            if (currentView === 'tactical') {
+                const canvas = document.getElementById('tactical-canvas');
+                const ctx = canvas.getContext('2d');
+                drawTacticalMap(ctx);
+            }
+            
+            // Update performance data
+            performanceData.push({
+                timestamp: Date.now(),
+                efficiency: 80 + Math.random() * 20,
+                threats: Math.floor(Math.random() * 5),
+                agents: agents.filter(a => a.status === 'active').length
+            });
+            
+            if (performanceData.length > 50) {
+                performanceData.shift();
+            }
+            
+            // Update performance chart
+            const perfCanvas = document.getElementById('performance-chart');
+            const perfCtx = perfCanvas.getContext('2d');
+            drawPerformanceChart(perfCtx);
+            
+            // Update metrics
+            const avgEfficiency = performanceData.reduce((sum, d) => sum + d.efficiency, 0) / performanceData.length;
+            document.getElementById('efficiency-metric').textContent = Math.round(avgEfficiency) + '%';
+        }
+
+        // Control functions
+        function switchView(view) {
+            // Hide all views
+            document.querySelectorAll('.view-content').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected view
+            document.getElementById(view + '-view').style.display = 'block';
+            event.target.classList.add('active');
+            
+            currentView = view;
+        }
+
+        function initiateMission() {
+            missionActive = true;
+            addLog(new Date().toLocaleTimeString(), 'info', 'Mission initiated');
+            
+            // Update agent status
+            agents.forEach(agent => {
+                if (agent.status === 'active') {
+                    agent.status = 'mission';
+                }
+            });
+            
+            updateAgentDisplay();
+        }
+
+        function abortMission() {
+            missionActive = false;
+            addLog(new Date().toLocaleTimeString(), 'warning', 'Mission aborted');
+            
+            // Update agent status
+            agents.forEach(agent => {
+                if (agent.status === 'mission') {
+                    agent.status = 'active';
+                }
+            });
+            
+            updateAgentDisplay();
+        }
+
+        function toggleAutonomous() {
+            autonomousMode = !autonomousMode;
+            addLog(new Date().toLocaleTimeString(), 'info', 
+                  `Autonomous mode ${autonomousMode ? 'enabled' : 'disabled'}`);
+        }
+
+        function requestBackup() {
+            addLog(new Date().toLocaleTimeString(), 'warning', 'Backup requested');
+            
+            // Add alert
+            const alertsContainer = document.getElementById('alerts-container');
+            const alert = document.createElement('div');
+            alert.className = 'alert-item alert-info';
+            alert.innerHTML = `<div><strong>${new Date().toLocaleTimeString().slice(0, 5)}</strong> - Backup units dispatched</div>`;
+            alertsContainer.insertBefore(alert, alertsContainer.firstChild);
+            
+            // Update alert count
+            const alertCount = document.getElementById('alert-count');
+            alertCount.textContent = parseInt(alertCount.textContent) + 1;
+        }
+
+        // Event listeners
+        document.getElementById('agent-count').addEventListener('input', function() {
+            document.getElementById('agent-count-display').textContent = this.value;
+            generateAgents();
+        });
+
+        // Simulate connection status
+        setInterval(() => {
+            const connectionStatus = document.getElementById('connection-status');
+            if (Math.random() < 0.02) { // 2% chance of disconnection
+                connectionStatus.className = 'connection-status disconnected';
+                connectionStatus.textContent = '● CONNECTION LOST - RECONNECTING...';
+                
+                setTimeout(() => {
+                    connectionStatus.className = 'connection-status connected';
+                    connectionStatus.textContent = '● SECURE CONNECTION ESTABLISHED';
+                }, 2000 + Math.random() * 3000);
+            }
+        }, 5000);
+
+        // Initialize dashboard when page loads
+        window.addEventListener('load', initDashboard);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('tactical-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            drawTacticalMap(ctx);
+        });
+    </script>
+</body>
+</html>

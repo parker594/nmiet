@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎖️ Advanced Military Tactical Command</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .tactical-button {
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: 2px solid #ffff00;
+            padding: 12px 20px;
+            margin: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .tactical-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+            box-shadow: 0 0 15px #ffff00;
+            transform: scale(1.05);
+        }
+
+        .coordinates-display {
+            background: rgba(0, 50, 0, 0.9);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .route-info {
+            background: rgba(50, 0, 0, 0.9);
+            border: 1px solid #ff0000;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            color: #ff6666;
+        }
+
+        .ai-response {
+            background: rgba(0, 0, 50, 0.9);
+            border: 1px solid #0066ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #66bbff;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .drone-command {
+            background: rgba(50, 50, 0, 0.9);
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            color: #ffff99;
+        }
+
+        h2 {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        h3 {
+            color: #ffff00;
+            margin: 10px 0 5px 0;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-active { background: #00ff00; }
+        .status-danger { background: #ff0000; }
+        .status-warning { background: #ffff00; }
+
+        .chat-container {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            padding: 10px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 8px;
+            background: #111;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .loading {
+            color: #ffff00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <h2>🎖️ TACTICAL COMMAND</h2>
+        
+        <div>
+            <h3>🏕️ Soldier Camp Operations</h3>
+            <button class="tactical-button" onclick="findNearestHeatSensor()">
+                🔥 Find Nearest Heat Sensor
+            </button>
+            <button class="tactical-button" onclick="showOptimalRoute()">
+                🗺️ Show Best Route
+            </button>
+            <button class="tactical-button" onclick="identifyRedZones()">
+                ⚠️ Show Red Zones
+            </button>
+            <button class="tactical-button" onclick="sendDroneCoordinates()">
+                🚁 Send to Drones
+            </button>
+        </div>
+
+        <div class="coordinates-display" id="coordinates-display">
+            <h3>📍 Current Coordinates</h3>
+            <div id="current-coords">Lat: ---, Lng: ---</div>
+        </div>
+
+        <div class="route-info" id="route-info" style="display: none;">
+            <h3>🎯 Route Information</h3>
+            <div id="route-details"></div>
+        </div>
+
+        <div class="drone-command" id="drone-command" style="display: none;">
+            <h3>🚁 Drone Command Status</h3>
+            <div id="drone-status"></div>
+        </div>
+
+        <div>
+            <h3>🤖 AI Tactical Analysis</h3>
+            <select id="ai-model" style="width: 100%; padding: 5px; background: #111; color: #00ff00; border: 1px solid #00ff00;">
+                <option value="openai">OpenAI Tactical AI</option>
+                <option value="google">Google Strategic AI</option>
+                <option value="dual">Dual AI Analysis</option>
+            </select>
+            <input type="text" id="ai-command" class="chat-input" placeholder="Enter tactical command..." />
+            <button class="tactical-button" onclick="queryAI()" style="width: 100%; margin: 5px 0;">
+                🧠 Execute AI Analysis
+            </button>
+            <div class="ai-response" id="ai-response">
+                <div class="status-indicator status-active"></div>AI systems ready for tactical analysis...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
+    <script>
+        // Advanced Military Tactical System
+        let map;
+        let soldierCamps = [];
+        let heatSensors = [];
+        let redZones = [];
+        let currentRoute = null;
+        let droneTargets = [];
+
+        // Real coordinates for Pune area (as requested)
+        const PUNE_COORDINATES = {
+            center: [18.5204, 73.8567], // Pune city center
+            airbase: [18.5821, 73.9197], // Pune Airport/Airbase area
+            phoenixMall: [18.5581, 73.9078] // Phoenix MarketCity Pune
+        };
+
+        // Initialize the advanced tactical map
+        function initMap() {
+            // Center on Pune as requested
+            map = L.map('map').setView(PUNE_COORDINATES.center, 13);
+
+            // Military-style dark theme map
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© Military Command | Tactical Operations'
+            }).addTo(map);
+
+            // Initialize tactical assets
+            setupSoldierCamps();
+            setupHeatSensors();
+            setupRedZones();
+            setupPuneAirbase();
+
+            // Update coordinates display on map movement
+            map.on('mousemove', function(e) {
+                updateCoordinatesDisplay(e.latlng.lat, e.latlng.lng);
+            });
+
+            console.log('🎖️ Advanced Military Tactical Map Initialized');
+        }
+
+        function setupSoldierCamps() {
+            const camps = [
+                { name: "Alpha Base", coords: [18.5104, 73.8467], strength: 150 },
+                { name: "Bravo Outpost", coords: [18.5304, 73.8667], strength: 85 },
+                { name: "Charlie Camp", coords: [18.5404, 73.8767], strength: 120 },
+                { name: "Delta Forward", coords: [18.5604, 73.8967], strength: 200 }
+            ];
+
+            camps.forEach(camp => {
+                const marker = L.marker(camp.coords)
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="color: #000; font-weight: bold;">
+                            <h3>${camp.name}</h3>
+                            <p>Strength: ${camp.strength} personnel</p>
+                            <p>Coordinates: ${camp.coords[0].toFixed(6)}, ${camp.coords[1].toFixed(6)}</p>
+                            <button onclick="selectSoldierCamp(${camp.coords[0]}, ${camp.coords[1]}, '${camp.name}')" 
+                                    style="background: #00aa00; color: white; border: none; padding: 5px 10px; cursor: pointer;">
+                                🎯 SELECT FOR OPERATIONS
+                            </button>
+                        </div>
+                    `);
+
+                // Custom soldier camp icon
+                marker.setIcon(L.icon({
+                    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" fill="#00aa00"/>
+                            <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">🏕️</text>
+                        </svg>
+                    `),
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                }));
+
+                soldierCamps.push({...camp, marker});
+            });
+        }
+
+        function setupHeatSensors() {
+            const sensors = [
+                { id: "HS-001", coords: [18.5154, 73.8517], temp: 85.2, status: "active" },
+                { id: "HS-002", coords: [18.5254, 73.8617], temp: 92.7, status: "active" },
+                { id: "HS-003", coords: [18.5354, 73.8717], temp: 78.1, status: "warning" },
+                { id: "HS-004", coords: [18.5454, 73.8817], temp: 98.5, status: "critical" },
+                { id: "HS-005", coords: [18.5554, 73.8917], temp: 81.3, status: "active" },
+                { id: "HS-006", coords: [18.5654, 73.9017], temp: 105.2, status: "critical" }
+            ];
+
+            sensors.forEach(sensor => {
+                const color = sensor.status === 'critical' ? '#ff0000' : 
+                             sensor.status === 'warning' ? '#ffaa00' : '#00ff00';
+                
+                const marker = L.circleMarker(sensor.coords, {
+                    radius: 8,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>🌡️ ${sensor.id}</h3>
+                        <p>Temperature: ${sensor.temp}°F</p>
+                        <p>Status: ${sensor.status.toUpperCase()}</p>
+                        <p>Coordinates: ${sensor.coords[0].toFixed(6)}, ${sensor.coords[1].toFixed(6)}</p>
+                    </div>
+                `);
+
+                heatSensors.push({...sensor, marker});
+            });
+        }
+
+        function setupRedZones() {
+            const zones = [
+                {
+                    name: "Danger Zone Alpha",
+                    bounds: [[18.5200, 73.8500], [18.5300, 73.8600]],
+                    threat: "Chemical contamination",
+                    severity: "high"
+                },
+                {
+                    name: "Restricted Area Bravo",
+                    bounds: [[18.5400, 73.8700], [18.5500, 73.8800]],
+                    threat: "Explosive ordnance",
+                    severity: "critical"
+                },
+                {
+                    name: "No-fly Zone Charlie", 
+                    bounds: [[18.5600, 73.8900], [18.5700, 73.9000]],
+                    threat: "Anti-aircraft systems",
+                    severity: "high"
+                }
+            ];
+
+            zones.forEach(zone => {
+                const color = zone.severity === 'critical' ? '#ff0000' : '#ff6600';
+                
+                const rectangle = L.rectangle(zone.bounds, {
+                    color: color,
+                    weight: 3,
+                    opacity: 0.8,
+                    fillColor: color,
+                    fillOpacity: 0.3
+                }).addTo(map);
+
+                rectangle.bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>⚠️ ${zone.name}</h3>
+                        <p>Threat: ${zone.threat}</p>
+                        <p>Severity: ${zone.severity.toUpperCase()}</p>
+                        <p>Bounds: ${zone.bounds[0][0].toFixed(6)}, ${zone.bounds[0][1].toFixed(6)} to ${zone.bounds[1][0].toFixed(6)}, ${zone.bounds[1][1].toFixed(6)}</p>
+                    </div>
+                `);
+
+                redZones.push({...zone, polygon: rectangle});
+            });
+        }
+
+        function setupPuneAirbase() {
+            // Pune Airbase near Phoenix Mall (as specifically requested)
+            const airbaseMarker = L.marker(PUNE_COORDINATES.airbase)
+                .addTo(map)
+                .bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>✈️ Pune Airbase</h3>
+                        <p>Near Phoenix MarketCity</p>
+                        <p>Coordinates: ${PUNE_COORDINATES.airbase[0].toFixed(6)}, ${PUNE_COORDINATES.airbase[1].toFixed(6)}</p>
+                        <p>Status: Operational</p>
+                        <p>Distance to Phoenix Mall: ~2.5km</p>
+                    </div>
+                `);
+
+            airbaseMarker.setIcon(L.icon({
+                iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                    <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="40" height="40" fill="#0066ff"/>
+                        <text x="20" y="25" text-anchor="middle" fill="white" font-size="20">✈️</text>
+                    </svg>
+                `),
+                iconSize: [40, 40],
+                iconAnchor: [20, 40]
+            }));
+
+            // Phoenix Mall marker for reference
+            const mallMarker = L.marker(PUNE_COORDINATES.phoenixMall)
+                .addTo(map)
+                .bindPopup(`
+                    <div style="color: #000; font-weight: bold;">
+                        <h3>🏬 Phoenix MarketCity</h3>
+                        <p>Reference Point</p>
+                        <p>Coordinates: ${PUNE_COORDINATES.phoenixMall[0].toFixed(6)}, ${PUNE_COORDINATES.phoenixMall[1].toFixed(6)}</p>
+                    </div>
+                `);
+
+            mallMarker.setIcon(L.icon({
+                iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                    <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="32" height="32" fill="#800080"/>
+                        <text x="16" y="20" text-anchor="middle" fill="white" font-size="16">🏬</text>
+                    </svg>
+                `),
+                iconSize: [32, 32],
+                iconAnchor: [16, 32]
+            }));
+        }
+
+        // Tactical Operations Functions
+        let selectedCamp = null;
+
+        function selectSoldierCamp(lat, lng, name) {
+            selectedCamp = { lat, lng, name };
+            updateCoordinatesDisplay(lat, lng);
+            document.getElementById('coordinates-display').innerHTML = `
+                <h3>📍 Selected: ${name}</h3>
+                <div>Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</div>
+                <div style="color: #ffff00;">Ready for tactical operations</div>
+            `;
+        }
+
+        function findNearestHeatSensor() {
+            if (!selectedCamp) {
+                alert('Please select a soldier camp first!');
+                return;
+            }
+
+            let nearestSensor = null;
+            let minDistance = Infinity;
+
+            heatSensors.forEach(sensor => {
+                const distance = calculateDistance(
+                    selectedCamp.lat, selectedCamp.lng,
+                    sensor.coords[0], sensor.coords[1]
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestSensor = sensor;
+                }
+            });
+
+            if (nearestSensor) {
+                // Highlight the nearest sensor
+                nearestSensor.marker.setStyle({ 
+                    radius: 15, 
+                    color: '#ffff00', 
+                    weight: 4 
+                });
+
+                updateCoordinatesDisplay(nearestSensor.coords[0], nearestSensor.coords[1]);
+                
+                document.getElementById('route-info').style.display = 'block';
+                document.getElementById('route-info').innerHTML = `
+                    <h3>🎯 Nearest Heat Sensor: ${nearestSensor.id}</h3>
+                    <div>📍 Coordinates: ${nearestSensor.coords[0].toFixed(6)}, ${nearestSensor.coords[1].toFixed(6)}</div>
+                    <div>📏 Distance: ${minDistance.toFixed(2)} km</div>
+                    <div>🌡️ Temperature: ${nearestSensor.temp}°F</div>
+                    <div>⚠️ Status: ${nearestSensor.status.toUpperCase()}</div>
+                `;
+
+                // Center map on the sensor
+                map.setView(nearestSensor.coords, 15);
+            }
+        }
+
+        function showOptimalRoute() {
+            if (!selectedCamp) {
+                alert('Please select a soldier camp first!');
+                return;
+            }
+
+            // Find nearest heat sensor first
+            let nearestSensor = null;
+            let minDistance = Infinity;
+
+            heatSensors.forEach(sensor => {
+                const distance = calculateDistance(
+                    selectedCamp.lat, selectedCamp.lng,
+                    sensor.coords[0], sensor.coords[1]
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestSensor = sensor;
+                }
+            });
+
+            if (nearestSensor) {
+                // Clear existing route
+                if (currentRoute) {
+                    map.removeControl(currentRoute);
+                }
+
+                // Create route
+                currentRoute = L.Routing.control({
+                    waypoints: [
+                        L.latLng(selectedCamp.lat, selectedCamp.lng),
+                        L.latLng(nearestSensor.coords[0], nearestSensor.coords[1])
+                    ],
+                    routeWhileDragging: true,
+                    lineOptions: {
+                        styles: [{ color: '#ff0000', weight: 4, opacity: 0.8 }]
+                    }
+                }).addTo(map);
+
+                document.getElementById('route-info').style.display = 'block';
+                document.getElementById('route-info').innerHTML = `
+                    <h3>🗺️ Optimal Route Calculated</h3>
+                    <div>📍 From: ${selectedCamp.name}</div>
+                    <div>📍 To: Heat Sensor ${nearestSensor.id}</div>
+                    <div>📏 Direct Distance: ${minDistance.toFixed(2)} km</div>
+                    <div>🎯 Route displayed in RED on map</div>
+                    <div>⚠️ Avoid red zones during transit</div>
+                `;
+            }
+        }
+
+        function identifyRedZones() {
+            document.getElementById('route-info').style.display = 'block';
+            let zoneInfo = '<h3>⚠️ Red Zone Analysis</h3>';
+            
+            redZones.forEach((zone, index) => {
+                zoneInfo += `
+                    <div style="margin: 5px 0; padding: 5px; border-left: 3px solid #ff0000;">
+                        <strong>${zone.name}</strong><br>
+                        Coordinates: ${zone.bounds[0][0].toFixed(6)}, ${zone.bounds[0][1].toFixed(6)} to ${zone.bounds[1][0].toFixed(6)}, ${zone.bounds[1][1].toFixed(6)}<br>
+                        Threat: ${zone.threat}<br>
+                        Severity: ${zone.severity.toUpperCase()}
+                    </div>
+                `;
+            });
+
+            document.getElementById('route-info').innerHTML = zoneInfo;
+
+            // Highlight all red zones
+            redZones.forEach(zone => {
+                zone.polygon.setStyle({ 
+                    weight: 5, 
+                    opacity: 1.0, 
+                    fillOpacity: 0.5 
+                });
+            });
+        }
+
+        function sendDroneCoordinates() {
+            if (!selectedCamp) {
+                alert('Please select a soldier camp first!');
+                return;
+            }
+
+            // Find nearest heat sensor
+            let nearestSensor = null;
+            let minDistance = Infinity;
+
+            heatSensors.forEach(sensor => {
+                const distance = calculateDistance(
+                    selectedCamp.lat, selectedCamp.lng,
+                    sensor.coords[0], sensor.coords[1]
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestSensor = sensor;
+                }
+            });
+
+            if (nearestSensor) {
+                const droneData = {
+                    mission_id: `DRONE_${Date.now()}`,
+                    source: {
+                        name: selectedCamp.name,
+                        lat: selectedCamp.lat,
+                        lng: selectedCamp.lng
+                    },
+                    target: {
+                        sensor_id: nearestSensor.id,
+                        lat: nearestSensor.coords[0],
+                        lng: nearestSensor.coords[1],
+                        temperature: nearestSensor.temp
+                    },
+                    timestamp: new Date().toISOString(),
+                    priority: nearestSensor.status === 'critical' ? 'HIGH' : 'NORMAL'
+                };
+
+                document.getElementById('drone-command').style.display = 'block';
+                document.getElementById('drone-command').innerHTML = `
+                    <h3>🚁 Drone Coordinates Transmitted</h3>
+                    <div><strong>Mission ID:</strong> ${droneData.mission_id}</div>
+                    <div><strong>Launch Point:</strong> ${droneData.source.name}</div>
+                    <div><strong>Launch Coords:</strong> ${droneData.source.lat.toFixed(6)}, ${droneData.source.lng.toFixed(6)}</div>
+                    <div><strong>Target Coords:</strong> ${droneData.target.lat.toFixed(6)}, ${droneData.target.lng.toFixed(6)}</div>
+                    <div><strong>Priority:</strong> ${droneData.priority}</div>
+                    <div><strong>Status:</strong> <span style="color: #00ff00;">TRANSMITTED ✅</span></div>
+                `;
+
+                // Simulate sending to actual drone system
+                console.log('🚁 Drone coordinates sent:', droneData);
+                
+                // Add drone target marker
+                const droneMarker = L.marker(nearestSensor.coords)
+                    .addTo(map)
+                    .bindPopup(`🚁 Drone Target: ${nearestSensor.id}`);
+                
+                droneMarker.setIcon(L.icon({
+                    iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                        <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" fill="#ffff00"/>
+                            <text x="16" y="20" text-anchor="middle" fill="black" font-size="16">🚁</text>
+                        </svg>
+                    `),
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                }));
+
+                droneTargets.push(droneMarker);
+            }
+        }
+
+        // AI Query Function (Fixed)
+        async function queryAI() {
+            const command = document.getElementById('ai-command').value;
+            const model = document.getElementById('ai-model').value;
+            const responseDiv = document.getElementById('ai-response');
+            
+            if (!command.trim()) {
+                alert('Please enter a tactical command!');
+                return;
+            }
+
+            responseDiv.innerHTML = '<div class="loading">🤖 Processing tactical analysis...</div>';
+
+            try {
+                const response = await fetch('/api/military-ai', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: command,
+                        location: selectedCamp ? selectedCamp.name : 'Pune Tactical Area',
+                        ai_model: model
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                responseDiv.innerHTML = `
+                    <div class="status-indicator status-active"></div>
+                    <strong>${data.system || 'AI System'}:</strong><br>
+                    ${data.analysis || data.message || 'Analysis complete.'}
+                    <br><br>
+                    <small>Confidence: ${(data.confidence * 100).toFixed(1)}% | ${data.timestamp}</small>
+                `;
+
+            } catch (error) {
+                console.error('AI query failed:', error);
+                responseDiv.innerHTML = `
+                    <div class="status-indicator status-danger"></div>
+                    <strong>AI System Error:</strong><br>
+                    Failed to process tactical command. Switching to backup analysis mode.
+                    <br><br>
+                    <small>Command: "${command}" | Location: ${selectedCamp ? selectedCamp.name : 'Pune Area'}</small>
+                `;
+            }
+
+            // Clear input
+            document.getElementById('ai-command').value = '';
+        }
+
+        // Allow Enter key to submit AI command
+        document.getElementById('ai-command').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                queryAI();
+            }
+        });
+
+        // Utility Functions
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function updateCoordinatesDisplay(lat, lng) {
+            document.getElementById('current-coords').innerHTML = 
+                `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+        }
+
+        // Initialize the map when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+        });
+    </script>
+</body>
+</html>

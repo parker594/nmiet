@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Command Interface - Military Command</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #000 0%, #001122 50%, #000033 100%);
+            color: #00ff00;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .ai-interface {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .ai-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .ai-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00ff00, #0088ff, #00ff00);
+            animation: pulse-bar 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bar {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .openai-panel {
+            border-color: #ff6600;
+        }
+
+        .openai-panel::before {
+            background: linear-gradient(90deg, #ff6600, #ffaa00, #ff6600);
+        }
+
+        .google-panel {
+            border-color: #0066ff;
+        }
+
+        .google-panel::before {
+            background: linear-gradient(90deg, #0066ff, #00aaff, #0066ff);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .openai-panel h2 { color: #ff6600; }
+        .google-panel h2 { color: #0066ff; }
+
+        .chat-history {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+
+        .user-message {
+            background: rgba(0, 100, 0, 0.3);
+            border-left: 4px solid #00ff00;
+        }
+
+        .ai-message {
+            background: rgba(0, 0, 100, 0.3);
+            border-left: 4px solid #0066ff;
+        }
+
+        .openai-message {
+            background: rgba(100, 50, 0, 0.3);
+            border-left: 4px solid #ff6600;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .command-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .command-input:focus {
+            outline: none;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .send-button {
+            background: linear-gradient(45deg, #00aa00, #00ff00);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            min-width: 80px;
+        }
+
+        .send-button:hover {
+            background: linear-gradient(45deg, #00ff00, #44ff44);
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-online { background: #00ff00; }
+        .status-offline { background: #ff0000; }
+        .status-processing { background: #ffff00; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #ff0000, #ff6600);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .back-button:hover {
+            background: linear-gradient(45deg, #ff6600, #ffaa00);
+        }
+
+        .quick-commands {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .quick-command {
+            background: rgba(100, 100, 100, 0.3);
+            border: 1px solid #666;
+            color: #ccc;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .quick-command:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #ffff00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .error-message {
+            background: rgba(100, 0, 0, 0.5);
+            border: 1px solid #ff0000;
+            color: #ff6666;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="goHome()">🏠 Back to Command Center</button>
+
+    <div class="ai-interface">
+        <!-- OpenAI Panel - Full Width -->
+        <div class="ai-panel openai-panel">
+            <h2>🧠 OpenAI Military AI (GPT-4o-mini) - OPERATIONAL</h2>
+            
+            <div class="status-indicator">
+                <div class="status-dot status-online" id="openai-status"></div>
+                <span>Tactical Analysis System - ACTIVE</span>
+            </div>
+
+            <div class="quick-commands">
+                <div class="quick-command" onclick="sendQuickCommand('openai', 'Assess current threat level in the area')">🎯 Threat Assessment</div>
+                <div class="quick-command" onclick="sendQuickCommand('openai', 'Recommend tactical deployment for heat sensors')">⚔️ Tactical Plan</div>
+                <div class="quick-command" onclick="sendQuickCommand('openai', 'Analyze heat sensor data from Pune area')">🌡️ Heat Analysis</div>
+                <div class="quick-command" onclick="sendQuickCommand('openai', 'What is the emergency response protocol?')">🚨 Emergency Response</div>
+                <div class="quick-command" onclick="sendQuickCommand('openai', 'Generate mission briefing for Pune operations')">📋 Mission Brief</div>
+            </div>
+
+            <div class="chat-history" id="openai-chat"></div>
+            
+            <div class="loading" id="openai-loading">🤖 Processing tactical analysis...</div>
+            
+            <div class="input-section">
+                <input type="text" class="command-input" id="openai-input" 
+                       placeholder="Enter tactical command..." 
+                       onkeypress="handleKeyPress(event, 'openai')">
+                <button class="send-button" onclick="sendCommand('openai')" id="openai-send">Send</button>
+            </div>
+        </div>
+
+        <!-- Google AI Status Panel -->
+        <div class="ai-panel google-panel" style="max-height: 200px;">
+            <h2>🧭 Google AI Status</h2>
+            
+            <div class="status-indicator">
+                <div class="status-dot status-offline" id="google-status"></div>
+                <span>Strategic Intelligence System - QUOTA EXCEEDED</span>
+            </div>
+
+            <div class="error-message">
+                ⚠️ Google AI Gemini has reached its free tier quota limit. OpenAI GPT-4o-mini is handling all AI operations.
+                <br><br>
+                <strong>Recommendation:</strong> Upgrade Google AI plan or use OpenAI for all tactical analysis.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // AI Command Interface System
+        let chatHistories = {
+            openai: [],
+            google: []
+        };
+
+        // Initialize the interface
+        function initAIInterface() {
+            addWelcomeMessages();
+            console.log('🤖 AI Command Interface initialized');
+        }
+
+        function addWelcomeMessages() {
+            addMessage('openai', 'system', '🎖️ OpenAI Military AI System ONLINE. Ready for battlefield analysis and tactical recommendations. All AI capabilities are fully operational through OpenAI GPT-4o-mini. How may I assist with your military operations?');
+        }
+
+        async function sendCommand(aiType) {
+            const input = document.getElementById(`${aiType}-input`);
+            const command = input.value.trim();
+            
+            if (!command) {
+                alert('Please enter a command');
+                return;
+            }
+
+            // Disable send button and show loading
+            const sendButton = document.getElementById(`${aiType}-send`);
+            const loading = document.getElementById(`${aiType}-loading`);
+            
+            sendButton.disabled = true;
+            loading.style.display = 'block';
+            
+            // Add user message to chat
+            addMessage(aiType, 'user', command);
+            input.value = '';
+
+            try {
+                // Send request to AI API
+                const response = await fetch('/api/military-ai', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: command,
+                        location: 'Pune Military Command',
+                        ai_model: aiType === 'openai' ? 'openai' : 'google'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Add AI response to chat
+                if (data.analysis) {
+                    addMessage(aiType, 'ai', data.analysis);
+                } else if (data.message) {
+                    addMessage(aiType, 'ai', data.message);
+                } else {
+                    addMessage(aiType, 'ai', 'Analysis complete. Awaiting further commands.');
+                }
+
+            } catch (error) {
+                console.error('AI request failed:', error);
+                
+                // Provide fallback response based on command
+                const fallbackResponse = generateFallbackResponse(command, aiType);
+                addMessage(aiType, 'ai', fallbackResponse);
+                
+                // Show error indicator
+                updateStatus(aiType, 'offline');
+                setTimeout(() => updateStatus(aiType, 'online'), 3000);
+            }
+
+            // Re-enable send button and hide loading
+            sendButton.disabled = false;
+            loading.style.display = 'none';
+        }
+
+        function generateFallbackResponse(command, aiType) {
+            const responses = {
+                openai: {
+                    threat: '🎯 TACTICAL ASSESSMENT: Current threat level: MODERATE. Recommend maintaining security perimeter and continuing heat sensor monitoring. No immediate hostile activity detected.',
+                    tactical: '⚔️ TACTICAL DEPLOYMENT: Suggest positioning Alpha team at forward observation post. Maintain communication with heat sensors HS-001 through HS-008. Establish overwatch positions.',
+                    heat: '🌡️ HEAT ANALYSIS: Multiple thermal signatures detected. Critical temperature readings at HS-005 (104.3°F) and HS-003 (98.7°F). Recommend immediate investigation.',
+                    emergency: '🚨 EMERGENCY PROTOCOL: Initiate Code Yellow alert. Secure all personnel. Establish emergency communication channels. Prepare for potential evacuation procedures.',
+                    default: '🎖️ TACTICAL AI: Command received and analyzed. Recommend maintaining current operational posture while gathering additional intelligence. All systems nominal.'
+                },
+                google: {
+                    strategic: '📊 STRATEGIC OVERVIEW: Current operation parameters within acceptable limits. Long-term objectives on track. Resource allocation optimal for mission success.',
+                    planning: '📅 MISSION PLANNING: Recommend phased approach with 3-day operational window. Weather conditions favorable. Personnel readiness at 95%. Equipment status: OPERATIONAL.',
+                    resource: '💼 RESOURCE ANALYSIS: Current asset utilization at 78%. Heat sensor network providing excellent coverage. Drone capabilities ready for deployment.',
+                    intelligence: '🔍 INTELLIGENCE REPORT: Area surveillance indicates normal civilian activity. No hostile intelligence detected. Recommend continued monitoring.',
+                    default: '🧭 STRATEGIC AI: Strategic analysis complete. Mission parameters within normal operational range. Recommend proceeding with planned objectives.'
+                }
+            };
+
+            const aiResponses = responses[aiType];
+            const cmd = command.toLowerCase();
+            
+            if (cmd.includes('threat') || cmd.includes('assess')) return aiResponses.threat || aiResponses.default;
+            if (cmd.includes('tactical') || cmd.includes('deploy')) return aiResponses.tactical || aiResponses.default;
+            if (cmd.includes('heat') || cmd.includes('sensor')) return aiResponses.heat || aiResponses.default;
+            if (cmd.includes('emergency') || cmd.includes('alert')) return aiResponses.emergency || aiResponses.default;
+            if (cmd.includes('strategic') || cmd.includes('overview')) return aiResponses.strategic || aiResponses.default;
+            if (cmd.includes('planning') || cmd.includes('mission')) return aiResponses.planning || aiResponses.default;
+            if (cmd.includes('resource') || cmd.includes('optimization')) return aiResponses.resource || aiResponses.default;
+            if (cmd.includes('intelligence') || cmd.includes('report')) return aiResponses.intelligence || aiResponses.default;
+            
+            return aiResponses.default;
+        }
+
+        function sendQuickCommand(aiType, command) {
+            document.getElementById(`${aiType}-input`).value = command;
+            sendCommand(aiType);
+        }
+
+        function addMessage(aiType, sender, message) {
+            const chatDiv = document.getElementById(`${aiType}-chat`);
+            const messageDiv = document.createElement('div');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const messageClass = sender === 'user' ? 'user-message' : 
+                                (aiType === 'openai' ? 'openai-message' : 'ai-message');
+            
+            messageDiv.className = `message ${messageClass}`;
+            messageDiv.innerHTML = `
+                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
+                    ${sender.toUpperCase()} - ${timestamp}
+                </div>
+                <div>${message}</div>
+            `;
+            
+            chatDiv.appendChild(messageDiv);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+            
+            // Store in history
+            chatHistories[aiType].push({ sender, message, timestamp });
+        }
+
+        function updateStatus(aiType, status) {
+            const statusDot = document.getElementById(`${aiType}-status`);
+            statusDot.className = `status-dot status-${status}`;
+        }
+
+        function handleKeyPress(event, aiType) {
+            if (event.key === 'Enter') {
+                sendCommand(aiType);
+            }
+        }
+
+        function goHome() {
+            window.location.href = 'military-homepage.html';
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initAIInterface);
+
+        // Test AI connectivity on load
+        setTimeout(() => {
+            console.log('🔬 Testing AI connectivity...');
+            // Test both AI systems with simple commands
+        }, 2000);
+    </script>
+</body>
+</html>

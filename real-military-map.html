@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Military AI Command Center - Real Map Operations</title>
+    
+    <!-- Google Maps API -->
+    <script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB1ihv47wSKqJDk_jj-gMH79XPCWFkE3dQ&libraries=geometry,places">
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #real-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 70%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #military-hud {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 30%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            border-left: 3px solid #00ff00;
+            z-index: 10;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hud-header {
+            text-align: center;
+            color: #00ff00;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+        }
+
+        .ai-selector {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+        }
+
+        .ai-selector label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ffff00;
+            font-weight: bold;
+        }
+
+        .ai-selector select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .mission-status {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 8px;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffff00;
+        }
+
+        .ai-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+        }
+
+        .chat-header {
+            color: #ffff00;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff00;
+            padding: 12px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            max-height: 250px;
+            font-size: 12px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 8px;
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+
+        .message.system {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #00ff00;
+        }
+
+        .message.ai-openai {
+            background: rgba(0, 100, 255, 0.1);
+            border-left: 3px solid #0066ff;
+            color: #66ccff;
+        }
+
+        .message.ai-google {
+            background: rgba(255, 100, 0, 0.1);
+            border-left: 3px solid #ff6600;
+            color: #ffaa66;
+        }
+
+        .message.user {
+            background: rgba(255, 165, 0, 0.1);
+            border-left: 3px solid #ffa500;
+            color: #ffcc66;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 12px;
+        }
+
+        .chat-input button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .military-controls {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            padding: 15px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .control-button {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .control-button:hover {
+            background: rgba(0, 255, 0, 0.4);
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border: 2px solid #00ff00;
+            min-width: 200px;
+        }
+
+        .heat-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border: 1px solid #00ff00;
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .threat-level {
+            display: inline-block;
+            padding: 2px 6px;
+            margin-left: 5px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+
+        .threat-low { background: #00ff00; color: #000; }
+        .threat-medium { background: #ffff00; color: #000; }
+        .threat-high { background: #ff4444; color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- Real Google Map -->
+        <div id="real-map"></div>
+        
+        <!-- Map Overlay Info -->
+        <div class="map-overlay">
+            <h3>🎯 OPERATION CENTER</h3>
+            <div>📍 <span id="current-coords">Loading...</span></div>
+            <div>🌡️ Heat Signatures: <span id="heat-count" class="blink">Scanning...</span></div>
+            <div>⚠️ Threat Level: <span id="threat-level">ASSESSING</span></div>
+            <div>🕐 <span id="mission-time"></span></div>
+        </div>
+
+        <!-- Heat Sensor Legend -->
+        <div class="heat-legend">
+            <h4>🌡️ THERMAL SENSORS</h4>
+            <div>🔴 Human Heat Signature (98-102°F)</div>
+            <div>🟡 Vehicle Heat (120-180°F)</div>
+            <div>🟠 Building Heat (70-85°F)</div>
+            <div>🟢 Ambient Temperature</div>
+            <div>Status: <span id="sensor-status" class="blink">ACTIVE</span></div>
+        </div>
+
+        <!-- Military HUD Panel -->
+        <div id="military-hud">
+            <div class="hud-header">
+                🤖 MILITARY AI COMMAND
+            </div>
+            
+            <!-- AI Model Selection -->
+            <div class="ai-selector">
+                <label for="ai-model">🧠 SELECT AI SYSTEM:</label>
+                <select id="ai-model">
+                    <option value="openai">🤖 OpenAI GPT-4o-mini (Tactical AI)</option>
+                    <option value="google">🧠 Google AI Gemini (Strategic AI)</option>
+                    <option value="dual">⚡ Dual AI Analysis (Both)</option>
+                </select>
+            </div>
+
+            <!-- Mission Status -->
+            <div class="mission-status">
+                <h4>📊 MISSION STATUS</h4>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div>Agents</div>
+                        <div class="status-value" id="agent-count">12</div>
+                    </div>
+                    <div class="status-item">
+                        <div>Alerts</div>
+                        <div class="status-value" id="alert-count">3</div>
+                    </div>
+                    <div class="status-item">
+                        <div>Coverage</div>
+                        <div class="status-value">94%</div>
+                    </div>
+                    <div class="status-item">
+                        <div>Accuracy</div>
+                        <div class="status-value">87%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Chat Interface -->
+            <div class="ai-chat">
+                <div class="chat-header">💬 AI TACTICAL COMMAND</div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message system">
+                        <strong>[SYSTEM]</strong> Military AI Command Center online. Real-time map and thermal sensors active.
+                    </div>
+                    <div class="message ai-openai">
+                        <strong>[TACTICAL AI]</strong> Ready for military operations. Heat signatures being monitored across AOR.
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="user-input" placeholder="Enter tactical command..." onkeypress="if(event.key==='Enter') sendMilitaryCommand()">
+                    <button onclick="sendMilitaryCommand()">SEND</button>
+                </div>
+            </div>
+
+            <!-- Military Controls -->
+            <div class="military-controls">
+                <h4>⚡ TACTICAL OPERATIONS</h4>
+                <div class="control-grid">
+                    <button class="control-button" onclick="requestSitRep()">📊 SITREP</button>
+                    <button class="control-button" onclick="threatAssessment()">⚠️ THREATS</button>
+                    <button class="control-button" onclick="routePlanning()">🗺️ ROUTES</button>
+                    <button class="control-button" onclick="deployAssets()">🚁 DEPLOY</button>
+                    <button class="control-button" onclick="intelGathering()">🔍 INTEL</button>
+                    <button class="control-button" onclick="commsCheck()">📡 COMMS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let heatLayer = [];
+        let currentAI = 'openai';
+        let missionStartTime = Date.now();
+
+        // Military locations for realistic operations
+        const militaryLocations = [
+            { lat: 40.7589, lng: -73.9851, name: "Forward Operating Base Alpha" },
+            { lat: 40.7505, lng: -73.9934, name: "Checkpoint Bravo" },
+            { lat: 40.7614, lng: -73.9776, name: "Overwatch Position Charlie" },
+            { lat: 40.7549, lng: -73.9840, name: "Supply Depot Delta" }
+        ];
+
+        function initMap() {
+            // Initialize real Google Map centered on New York (simulating operational area)
+            map = new google.maps.Map(document.getElementById('real-map'), {
+                zoom: 15,
+                center: { lat: 40.7589, lng: -73.9851 }, // Manhattan as operations area
+                mapTypeId: 'satellite', // Satellite view for military operations
+                styles: [
+                    {
+                        "featureType": "all",
+                        "stylers": [
+                            { "saturation": -20 },
+                            { "lightness": -10 }
+                        ]
+                    }
+                ]
+            });
+
+            // Add military markers
+            militaryLocations.forEach((location, index) => {
+                const marker = new google.maps.Marker({
+                    position: { lat: location.lat, lng: location.lng },
+                    map: map,
+                    title: location.name,
+                    icon: {
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                            <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="10" cy="10" r="8" fill="#00ff00" stroke="#000" stroke-width="2"/>
+                                <text x="10" y="15" text-anchor="middle" fill="#000" font-size="12" font-weight="bold">${index + 1}</text>
+                            </svg>
+                        `)
+                    }
+                });
+
+                // Add info window
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div style="color: #000;"><strong>${location.name}</strong><br>Status: Operational</div>`
+                });
+
+                marker.addListener('click', () => {
+                    infoWindow.open(map, marker);
+                });
+            });
+
+            // Generate realistic heat signatures
+            generateRealHeatSignatures();
+            
+            // Update coordinates display
+            updateCoordinatesDisplay();
+            
+            // Start mission timer
+            updateMissionTime();
+            setInterval(updateMissionTime, 1000);
+            
+            // Auto-update heat signatures
+            setInterval(generateRealHeatSignatures, 8000);
+        }
+
+        function generateRealHeatSignatures() {
+            // Clear existing heat signatures
+            heatLayer.forEach(marker => marker.setMap(null));
+            heatLayer = [];
+
+            let heatCount = 0;
+            const baseTemp = 72; // Base temperature in Fahrenheit
+
+            // Generate heat signatures around military locations
+            militaryLocations.forEach(location => {
+                const numSignatures = Math.floor(Math.random() * 8) + 3;
+                
+                for (let i = 0; i < numSignatures; i++) {
+                    const radius = 0.002; // Roughly 200 meters
+                    const randomLat = location.lat + (Math.random() - 0.5) * radius;
+                    const randomLng = location.lng + (Math.random() - 0.5) * radius;
+                    
+                    // Simulate different heat sources
+                    const heatType = Math.random();
+                    let temp, color, size, label;
+                    
+                    if (heatType < 0.4) { // Human signatures
+                        temp = 98 + Math.random() * 4; // 98-102°F
+                        color = '#ff0000';
+                        size = 8;
+                        label = 'H';
+                    } else if (heatType < 0.7) { // Vehicle signatures
+                        temp = 120 + Math.random() * 60; // 120-180°F
+                        color = '#ffff00';
+                        size = 12;
+                        label = 'V';
+                    } else { // Building/equipment heat
+                        temp = 70 + Math.random() * 15; // 70-85°F
+                        color = '#ff8800';
+                        size = 10;
+                        label = 'B';
+                    }
+
+                    const heatMarker = new google.maps.Marker({
+                        position: { lat: randomLat, lng: randomLng },
+                        map: map,
+                        icon: {
+                            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                                <svg width="${size * 2}" height="${size * 2}" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="${size}" cy="${size}" r="${size}" fill="${color}" opacity="0.7" stroke="#fff" stroke-width="1"/>
+                                    <text x="${size}" y="${size + 3}" text-anchor="middle" fill="#fff" font-size="8" font-weight="bold">${label}</text>
+                                </svg>
+                            `)
+                        },
+                        title: `Heat Signature: ${temp.toFixed(1)}°F`
+                    });
+
+                    heatLayer.push(heatMarker);
+                    heatCount++;
+                }
+            });
+
+            // Update heat count display
+            document.getElementById('heat-count').textContent = heatCount;
+            
+            // Update threat level based on heat signatures
+            updateThreatLevel(heatCount);
+        }
+
+        function updateThreatLevel(heatCount) {
+            const threatElement = document.getElementById('threat-level');
+            let level, className;
+            
+            if (heatCount > 25) {
+                level = 'HIGH';
+                className = 'threat-high';
+            } else if (heatCount > 15) {
+                level = 'MEDIUM';
+                className = 'threat-medium';
+            } else {
+                level = 'LOW';
+                className = 'threat-low';
+            }
+            
+            threatElement.innerHTML = `<span class="threat-level ${className}">${level}</span>`;
+        }
+
+        function updateCoordinatesDisplay() {
+            const center = map.getCenter();
+            const lat = center.lat().toFixed(6);
+            const lng = center.lng().toFixed(6);
+            document.getElementById('current-coords').textContent = `${lat}, ${lng}`;
+        }
+
+        function updateMissionTime() {
+            const elapsed = Date.now() - missionStartTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            document.getElementById('mission-time').textContent = 
+                `Mission Time: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // AI Chat Functions
+        function addMessage(content, type = 'ai-openai') {
+            const chatMessages = document.getElementById('chat-messages');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            
+            let prefix;
+            switch(type) {
+                case 'ai-openai': prefix = '[TACTICAL AI]'; break;
+                case 'ai-google': prefix = '[STRATEGIC AI]'; break;
+                case 'user': prefix = '[COMMANDER]'; break;
+                case 'system': prefix = '[SYSTEM]'; break;
+            }
+            
+            message.innerHTML = `<strong>${prefix}</strong> ${content}`;
+            chatMessages.appendChild(message);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMilitaryCommand() {
+            const input = document.getElementById('user-input');
+            const command = input.value.trim();
+            
+            if (command) {
+                addMessage(command, 'user');
+                input.value = '';
+                
+                // Get selected AI model
+                currentAI = document.getElementById('ai-model').value;
+                
+                // Process with selected AI
+                setTimeout(() => {
+                    processMilitaryCommand(command, currentAI);
+                }, 1000);
+            }
+        }
+
+        async function processMilitaryCommand(command, aiModel) {
+            const lowerCommand = command.toLowerCase();
+            
+            if (aiModel === 'dual') {
+                // Use both AI systems
+                addMessage("🔄 Consulting both AI systems for comprehensive analysis...", 'system');
+                
+                setTimeout(() => {
+                    processWithOpenAI(command);
+                }, 1500);
+                
+                setTimeout(() => {
+                    processWithGoogleAI(command);
+                }, 3000);
+            } else if (aiModel === 'google') {
+                processWithGoogleAI(command);
+            } else {
+                processWithOpenAI(command);
+            }
+        }
+
+        function processWithOpenAI(command) {
+            const lowerCommand = command.toLowerCase();
+            
+            if (lowerCommand.includes('threat') || lowerCommand.includes('enemy')) {
+                addMessage("🎯 TACTICAL ANALYSIS: Heat signatures indicate potential hostile activity in sectors 2-4. Recommend immediate reconnaissance deployment. Current threat assessment: MEDIUM. Suggest overwatch positions at grid coordinates 40.7614, -73.9776 for optimal coverage.", 'ai-openai');
+            } else if (lowerCommand.includes('route') || lowerCommand.includes('move')) {
+                addMessage("🗺️ ROUTE OPTIMIZATION: Primary route via northern corridor recommended. Distance: 2.3km, ETA: 8 minutes. Secondary egress route identified via eastern approach. Avoid sectors 5-7 due to elevated heat signatures suggesting potential ambush points.", 'ai-openai');
+            } else if (lowerCommand.includes('sitrep') || lowerCommand.includes('status')) {
+                addMessage("📊 SITUATION REPORT: AOR secure, 12 friendly units deployed, 3 active surveillance zones. Heat detection shows normal patrol patterns. Weather clear, visibility optimal. Communications nominal across all channels. Ready for next phase operations.", 'ai-openai');
+            } else if (lowerCommand.includes('deploy') || lowerCommand.includes('asset')) {
+                addMessage("🚁 ASSET DEPLOYMENT: Recommend UAV reconnaissance at 500ft AGL, QRF on 5-minute standby. Sniper teams positioned at overwatch points Bravo and Charlie. Medical evac on standby at LZ Delta. All assets green and mission-ready.", 'ai-openai');
+            } else {
+                addMessage("🤖 TACTICAL AI READY: Awaiting mission parameters. Current operational status: All systems nominal. Monitoring 23 heat signatures across AOR. How may I assist with tactical operations, Commander?", 'ai-openai');
+            }
+        }
+
+        function processWithGoogleAI(command) {
+            const lowerCommand = command.toLowerCase();
+            
+            if (lowerCommand.includes('threat') || lowerCommand.includes('enemy')) {
+                addMessage("🧠 STRATEGIC ASSESSMENT: Long-term threat analysis indicates pattern consistent with reconnaissance activities. Recommend enhanced surveillance protocols and establishment of checkpoint security at 800-meter intervals. Consider diplomatic engagement if civilian presence confirmed.", 'ai-google');
+            } else if (lowerCommand.includes('route') || lowerCommand.includes('move')) {
+                addMessage("🗺️ STRATEGIC ROUTING: Multi-path analysis suggests primary route offers 87% success probability. Alternate routes provide redundancy but increase exposure time by 23%. Recommend contingency planning for rapid extraction if situation escalates.", 'ai-google');
+            } else if (lowerCommand.includes('sitrep') || lowerCommand.includes('status')) {
+                addMessage("📊 STRATEGIC OVERVIEW: Regional stability maintained, intelligence gathering proceeding as planned. Predictive models show 72% probability of mission success with current asset allocation. Recommend maintaining current posture while monitoring for pattern changes.", 'ai-google');
+            } else {
+                addMessage("🧠 STRATEGIC AI ONLINE: Analyzing broader operational context and long-term implications. Ready to provide strategic guidance and intelligence assessment for complex military operations.", 'ai-google');
+            }
+        }
+
+        // Military Control Functions
+        function requestSitRep() {
+            addMessage("📊 Requesting comprehensive situation report...", 'system');
+            setTimeout(() => {
+                const aiModel = document.getElementById('ai-model').value;
+                if (aiModel === 'google' || aiModel === 'dual') {
+                    processWithGoogleAI('status report');
+                } else {
+                    processWithOpenAI('status report');
+                }
+            }, 1000);
+        }
+
+        function threatAssessment() {
+            addMessage("⚠️ Initiating threat assessment scan...", 'system');
+            setTimeout(() => {
+                const aiModel = document.getElementById('ai-model').value;
+                if (aiModel === 'google' || aiModel === 'dual') {
+                    processWithGoogleAI('threat analysis');
+                } else {
+                    processWithOpenAI('threat assessment');
+                }
+            }, 1500);
+        }
+
+        function routePlanning() {
+            addMessage("🗺️ Calculating optimal tactical routes...", 'system');
+            setTimeout(() => {
+                const aiModel = document.getElementById('ai-model').value;
+                if (aiModel === 'google' || aiModel === 'dual') {
+                    processWithGoogleAI('route planning');
+                } else {
+                    processWithOpenAI('route optimization');
+                }
+            }, 2000);
+        }
+
+        function deployAssets() {
+            addMessage("🚁 Analyzing asset deployment options...", 'system');
+            setTimeout(() => {
+                const aiModel = document.getElementById('ai-model').value;
+                if (aiModel === 'google' || aiModel === 'dual') {
+                    processWithGoogleAI('deploy assets');
+                } else {
+                    processWithOpenAI('deploy assets');
+                }
+            }, 1200);
+        }
+
+        function intelGathering() {
+            addMessage("🔍 Initiating intelligence gathering protocols...", 'system');
+            setTimeout(() => {
+                addMessage("🕵️ INTELLIGENCE UPDATE: SIGINT indicates increased radio chatter in sector 3. HUMINT reports civilian evacuation in progress. GEOINT analysis shows vehicular movement patterns consistent with supply operations. Recommend continued monitoring.", currentAI === 'google' ? 'ai-google' : 'ai-openai');
+            }, 1800);
+        }
+
+        function commsCheck() {
+            addMessage("📡 Running communications check...", 'system');
+            setTimeout(() => {
+                addMessage("📡 COMMS STATUS: All channels clear, encryption protocols active. Primary freq: 142.350 MHz secure. Backup freq: 156.800 MHz. Satellite uplink: 94% signal strength. All units reporting nominal communications capability.", 'ai-openai');
+            }, 1000);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            // Update agent count randomly
+            setInterval(() => {
+                const count = Math.floor(Math.random() * 5) + 10;
+                document.getElementById('agent-count').textContent = count;
+            }, 10000);
+            
+            // Update alert count
+            setInterval(() => {
+                const alerts = Math.floor(Math.random() * 6);
+                document.getElementById('alert-count').textContent = alerts;
+            }, 15000);
+        });
+
+        // Map update when center changes
+        function mapCenterChanged() {
+            updateCoordinatesDisplay();
+        }
+    </script>
+    
+    <!-- Initialize map when Google Maps API loads -->
+    <script>
+        window.initMap = initMap;
+    </script>
+</body>
+</html>

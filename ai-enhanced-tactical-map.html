@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Military AI Simulation - AI-Enhanced Tactical Map</title>
+    
+    <!-- Three.js for 3D visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #map3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 70%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ai-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 30%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            border-left: 2px solid #00ff00;
+            z-index: 10;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-header {
+            text-align: center;
+            color: #00ff00;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+        }
+
+        .ai-status {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+        }
+
+        .ai-system {
+            text-align: center;
+        }
+
+        .ai-system-name {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .ai-system-status {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .ai-system.online {
+            color: #00ff00;
+        }
+
+        .ai-system.offline {
+            color: #ff4444;
+        }
+
+        .ai-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            max-height: 300px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .message.system {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #00ff00;
+        }
+
+        .message.ai {
+            background: rgba(0, 100, 255, 0.1);
+            border-left: 3px solid #0066ff;
+            color: #66ccff;
+        }
+
+        .message.user {
+            background: rgba(255, 165, 0, 0.1);
+            border-left: 3px solid #ffa500;
+            color: #ffcc66;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px;
+            font-family: inherit;
+        }
+
+        .chat-input button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .chat-input button:hover {
+            background: #00cc00;
+        }
+
+        .ai-analysis {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .analysis-title {
+            color: #ffff00;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-decoration: underline;
+        }
+
+        .threat-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .threat-low { background: #00ff00; }
+        .threat-medium { background: #ffff00; }
+        .threat-high { background: #ff4444; }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border: 1px solid #00ff00;
+        }
+
+        .control-button {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px 12px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .control-button:hover {
+            background: rgba(0, 255, 0, 0.4);
+        }
+
+        .heat-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border: 1px solid #00ff00;
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- 3D Map Canvas -->
+        <div id="map3d"></div>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <h3>🎯 TACTICAL CONTROLS</h3>
+            <button class="control-button" onclick="requestAIAnalysis()">🧠 AI ANALYSIS</button>
+            <button class="control-button" onclick="detectThreats()">⚠️ THREAT SCAN</button>
+            <button class="control-button" onclick="optimizeRoute()">🗺️ ROUTE PLAN</button>
+            <button class="control-button" onclick="toggleHeatMap()">🌡️ HEAT VISION</button>
+        </div>
+
+        <!-- Heat Map Legend -->
+        <div class="heat-legend">
+            <h4>🌡️ HEAT SIGNATURES</h4>
+            <div>🔴 High Intensity (Human)</div>
+            <div>🟡 Medium Intensity (Vehicle)</div>
+            <div>🟢 Low Intensity (Background)</div>
+            <div>Status: <span id="heat-status" class="blink">SCANNING...</span></div>
+        </div>
+
+        <!-- AI Assistant Panel -->
+        <div id="ai-panel">
+            <div class="ai-header">
+                🤖 AI TACTICAL ASSISTANT
+            </div>
+            
+            <!-- AI Systems Status -->
+            <div class="ai-status">
+                <div class="ai-system online">
+                    <div class="ai-system-name">OpenAI GPT-4o</div>
+                    <div class="ai-system-status">🟢 ONLINE</div>
+                </div>
+                <div class="ai-system online">
+                    <div class="ai-system-name">Google AI</div>
+                    <div class="ai-system-status">🟡 LIMITED</div>
+                </div>
+                <div class="ai-system online">
+                    <div class="ai-system-name">Heat Detection</div>
+                    <div class="ai-system-status">🟢 ACTIVE</div>
+                </div>
+            </div>
+
+            <!-- AI Chat Interface -->
+            <div class="ai-chat">
+                <h4>💬 AI COMMAND INTERFACE</h4>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message system">
+                        <strong>[SYSTEM]</strong> AI Tactical Assistant initialized. Ready for commands.
+                    </div>
+                    <div class="message ai">
+                        <strong>[AI]</strong> Military AI simulation online. Heat signatures being monitored. How can I assist with tactical operations?
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="user-input" placeholder="Enter tactical command..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()">SEND</button>
+                </div>
+            </div>
+
+            <!-- Real-time AI Analysis -->
+            <div class="ai-analysis">
+                <div class="analysis-title">🔍 LIVE AI ANALYSIS</div>
+                <div id="analysis-content">
+                    <div>
+                        <span class="threat-indicator threat-low"></span>
+                        <strong>Threat Level:</strong> LOW
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <strong>🎯 Tactical Recommendation:</strong><br>
+                        Area secure. Continue surveillance operations. Heat signatures detected but classified as non-hostile.
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <strong>📊 AI Confidence:</strong> 94%
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 3D Scene Setup
+        let scene, camera, renderer, heatPoints = [];
+        let isHeatMapVisible = true;
+
+        function init3DMap() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, (window.innerWidth * 0.7) / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth * 0.7, window.innerHeight);
+            renderer.setClearColor(0x001122);
+            document.getElementById('map3d').appendChild(renderer.domElement);
+
+            // Create terrain
+            const geometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x004400, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            const terrain = new THREE.Mesh(geometry, material);
+            terrain.rotation.x = -Math.PI / 2;
+            scene.add(terrain);
+
+            // Set camera position
+            camera.position.set(0, 50, 100);
+            camera.lookAt(0, 0, 0);
+
+            // Generate initial heat signatures
+            generateHeatSignatures();
+            
+            // Start animation loop
+            animate();
+        }
+
+        function generateHeatSignatures() {
+            // Clear existing heat points
+            heatPoints.forEach(point => scene.remove(point));
+            heatPoints = [];
+
+            // Generate random heat signatures
+            for (let i = 0; i < 20; i++) {
+                const geometry = new THREE.SphereGeometry(1, 8, 8);
+                const intensity = Math.random();
+                let color;
+                
+                if (intensity > 0.7) color = 0xff0000; // High - Red
+                else if (intensity > 0.4) color = 0xffff00; // Medium - Yellow
+                else color = 0x00ff00; // Low - Green
+
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                
+                const heatPoint = new THREE.Mesh(geometry, material);
+                heatPoint.position.set(
+                    (Math.random() - 0.5) * 180,
+                    Math.random() * 10 + 2,
+                    (Math.random() - 0.5) * 180
+                );
+                
+                scene.add(heatPoint);
+                heatPoints.push(heatPoint);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate camera around the scene
+            const time = Date.now() * 0.0005;
+            camera.position.x = Math.cos(time) * 100;
+            camera.position.z = Math.sin(time) * 100;
+            camera.lookAt(0, 0, 0);
+            
+            // Animate heat points
+            heatPoints.forEach(point => {
+                point.material.opacity = 0.5 + Math.sin(Date.now() * 0.01 + point.position.x) * 0.3;
+            });
+            
+            renderer.render(scene, camera);
+        }
+
+        // AI Functions
+        function addMessage(content, type = 'ai') {
+            const chatMessages = document.getElementById('chat-messages');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            
+            const prefix = type === 'ai' ? '[AI]' : type === 'user' ? '[USER]' : '[SYSTEM]';
+            message.innerHTML = `<strong>${prefix}</strong> ${content}`;
+            
+            chatMessages.appendChild(message);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (message) {
+                addMessage(message, 'user');
+                input.value = '';
+                
+                // Simulate AI response
+                setTimeout(() => {
+                    processAICommand(message);
+                }, 1000);
+            }
+        }
+
+        async function processAICommand(command) {
+            const lowerCommand = command.toLowerCase();
+            
+            if (lowerCommand.includes('threat') || lowerCommand.includes('danger')) {
+                addMessage("🔍 Scanning for threats... Detected 3 heat signatures. Analyzing threat level... Assessment: LOW RISK. Signatures appear to be wildlife or civilian activity.", 'ai');
+                updateAnalysis('LOW', 'Continue monitoring. No immediate action required.');
+            } 
+            else if (lowerCommand.includes('route') || lowerCommand.includes('path')) {
+                addMessage("🗺️ Calculating optimal route... Analyzing terrain, threat patterns, and weather conditions... Route optimized for safety and speed. ETA: 23 minutes via northern corridor.", 'ai');
+                updateAnalysis('MEDIUM', 'Recommended route calculated. Proceed with caution through sectors 7-9.');
+            }
+            else if (lowerCommand.includes('status') || lowerCommand.includes('report')) {
+                addMessage("📊 System Status: All AI modules operational. Heat detection: ACTIVE. Threat assessment: CONTINUOUS. Current area security level: GREEN. 18 heat signatures monitored.", 'ai');
+                updateAnalysis('LOW', 'All systems nominal. Area secure.');
+            }
+            else {
+                addMessage("🤖 Command received. Processing with tactical AI systems... How can I assist with your military operation?", 'ai');
+            }
+        }
+
+        function updateAnalysis(threatLevel, recommendation) {
+            const analysisContent = document.getElementById('analysis-content');
+            const threatColors = {
+                'LOW': 'threat-low',
+                'MEDIUM': 'threat-medium', 
+                'HIGH': 'threat-high'
+            };
+            
+            analysisContent.innerHTML = `
+                <div>
+                    <span class="threat-indicator ${threatColors[threatLevel]}"></span>
+                    <strong>Threat Level:</strong> ${threatLevel}
+                </div>
+                <div style="margin-top: 10px;">
+                    <strong>🎯 Tactical Recommendation:</strong><br>
+                    ${recommendation}
+                </div>
+                <div style="margin-top: 10px;">
+                    <strong>📊 AI Confidence:</strong> ${85 + Math.floor(Math.random() * 15)}%
+                </div>
+                <div style="margin-top: 10px;">
+                    <strong>⏰ Last Update:</strong> ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+        }
+
+        // Control Functions
+        function requestAIAnalysis() {
+            addMessage("Initiating comprehensive AI tactical analysis...", 'system');
+            setTimeout(() => {
+                addMessage("🧠 AI ANALYSIS COMPLETE: Area shows 18 heat signatures. 3 mobile units detected moving northeast. Threat assessment: LOW. Recommend continued surveillance with focus on grid sectors 4-7. Weather conditions optimal for operations.", 'ai');
+                updateAnalysis('LOW', 'Continue surveillance operations. Focus on northeast movement patterns.');
+            }, 2000);
+        }
+
+        function detectThreats() {
+            addMessage("🔍 Initiating threat detection scan...", 'system');
+            setTimeout(() => {
+                addMessage("⚠️ THREAT SCAN RESULTS: Detected 2 potential vehicles and 8 human signatures. Movement patterns suggest patrol activity. Classification: NON-HOSTILE. Maintain observation protocols.", 'ai');
+                updateAnalysis('MEDIUM', 'Monitor patrol movements. Maintain defensive posture.');
+            }, 1500);
+        }
+
+        function optimizeRoute() {
+            addMessage("🗺️ Calculating optimal tactical route...", 'system');
+            setTimeout(() => {
+                addMessage("🎯 ROUTE OPTIMIZATION: Best path calculated via coordinates 40.7128, -74.0060 to 40.7589, -73.9851. Distance: 3.2km. Estimated time: 12 minutes. Threat avoidance: MAXIMIZED.", 'ai');
+                updateAnalysis('LOW', 'Optimal route calculated. Proceed when ready.');
+            }, 2500);
+        }
+
+        function toggleHeatMap() {
+            isHeatMapVisible = !isHeatMapVisible;
+            heatPoints.forEach(point => {
+                point.visible = isHeatMapVisible;
+            });
+            
+            const status = document.getElementById('heat-status');
+            status.textContent = isHeatMapVisible ? 'ACTIVE' : 'DISABLED';
+            status.className = isHeatMapVisible ? 'blink' : '';
+            
+            addMessage(`🌡️ Heat vision ${isHeatMapVisible ? 'ENABLED' : 'DISABLED'}`, 'system');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            init3DMap();
+            
+            // Simulate periodic AI updates
+            setInterval(() => {
+                generateHeatSignatures();
+            }, 15000);
+            
+            // Auto-update analysis
+            setInterval(() => {
+                const threats = ['LOW', 'MEDIUM'];
+                const recommendations = [
+                    'Area secure. Continue standard patrol.',
+                    'Monitor east perimeter. Increased activity detected.',
+                    'All clear. No immediate threats identified.',
+                    'Weather conditions optimal for operations.'
+                ];
+                
+                updateAnalysis(
+                    threats[Math.floor(Math.random() * threats.length)],
+                    recommendations[Math.floor(Math.random() * recommendations.length)]
+                );
+            }, 30000);
+        });
+
+        // Responsive resize
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth * 0.7) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth * 0.7, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
