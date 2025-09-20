@@ -129,12 +129,26 @@ class AIQuery(BaseModel):
     context: str = "military_simulation"
 
 # Static files
+app.mount("/features", StaticFiles(directory="features"), name="features")
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # Routes
 @app.get("/")
 async def root():
     return FileResponse("frontend/index.html")
+
+# Direct HTML file routes
+@app.get("/3d-heat-map.html")
+async def heat_map_html():
+    return FileResponse("3d-heat-map.html")
+
+@app.get("/tactical-operations-map.html")
+async def tactical_map_html():
+    return FileResponse("tactical-operations-map.html")
+
+@app.get("/final-military-ai-interface.html")
+async def ai_interface_html():
+    return FileResponse("final-military-ai-interface.html")
 
 @app.get("/features/{feature_name}")
 async def serve_feature(feature_name: str):
@@ -267,6 +281,27 @@ async def get_heat_map_data():
         "data": heat_data,
         "timestamp": datetime.now().isoformat()
     }
+
+# Catch-all route for static files
+@app.get("/{file_path:path}")
+async def serve_static_files(file_path: str):
+    """Serve static files from various directories"""
+    # Try root directory first
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    
+    # Try frontend directory
+    frontend_path = f"frontend/{file_path}"
+    if os.path.exists(frontend_path):
+        return FileResponse(frontend_path)
+    
+    # Try features directory
+    features_path = f"features/{file_path}"
+    if os.path.exists(features_path):
+        return FileResponse(features_path)
+    
+    # If nothing found, return 404
+    raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
 
 # WebSocket for real-time updates
 class ConnectionManager:
